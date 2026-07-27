@@ -1,2 +1,0 @@
-#!/bin/sh
-zig build --build-file build.tests.zig test compute-tests -j1 --summary all
