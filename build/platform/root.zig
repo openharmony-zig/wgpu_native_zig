@@ -39,6 +39,22 @@ pub fn configureSource(
     }
 }
 
+pub fn patchSource(
+    b: *std.Build,
+    staged_source: *std.Build.Step.WriteFile,
+    source_root: std.Build.LazyPath,
+    config: Config,
+) bool {
+    return switch (config.kind) {
+        .ohos => ohos.patchSource(b, staged_source, source_root, config),
+        else => true,
+    };
+}
+
+pub fn hasSourceCargoConfig(config: Config) bool {
+    return config.kind == .ohos and config.target.result.cpu.arch == .arm;
+}
+
 pub fn configureModule(
     b: *std.Build,
     config: Config,

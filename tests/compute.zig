@@ -58,7 +58,7 @@ fn compute_collatz() ![4]u32 {
 
     const compute_pipeline = device.createComputePipeline(&wgpu.ComputePipelineDescriptor{
         .label = wgpu.StringView.fromSlice("compute_pipeline"),
-        .compute = wgpu.ProgrammableStageDescriptor{
+        .compute = wgpu.ComputeState{
             .module = shader_module,
             .entry_point = wgpu.StringView.fromSlice("main"),
         },
@@ -126,7 +126,10 @@ fn compute_collatz() ![4]u32 {
 }
 
 test "compute functionality" {
-    const values = try compute_collatz();
+    const values = compute_collatz() catch |err| switch (err) {
+        error.NoAdapter, error.NoDevice => return error.SkipZigTest,
+        else => return err,
+    };
 
     try testing.expect(values[0] == 0);
     try testing.expect(values[1] == 1);

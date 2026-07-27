@@ -44,7 +44,7 @@ fn waitForCompletion(instance: wgpu.WGPUInstance, complete: *bool) void {
     }
 }
 
-fn compute_collatz() [4]u32 {
+fn compute_collatz() ![4]u32 {
     const numbers = [_]u32{ 1, 2, 3, 4 };
     const numbers_size = @sizeOf(@TypeOf(numbers));
     const numbers_length = numbers_size / @sizeOf(u32);
@@ -64,6 +64,7 @@ fn compute_collatz() [4]u32 {
         });
         waitForCompletion(instance, &request_complete);
     }
+    if (adapter == null) return error.NoAdapter;
     defer wgpu.wgpuAdapterRelease(adapter);
 
     var device: wgpu.WGPUDevice = null;
@@ -78,26 +79,28 @@ fn compute_collatz() [4]u32 {
         });
         waitForCompletion(instance, &request_complete);
     }
+    if (device == null) return error.NoDevice;
     defer wgpu.wgpuDeviceRelease(device);
 
     const queue = wgpu.wgpuDeviceGetQueue(device.?);
     defer wgpu.wgpuQueueRelease(queue);
 
     const compute_shader = @embedFile("./compute.wgsl");
+    var shader_source = wgpu.WGPUShaderSourceWGSL{
+        .chain = wgpu.WGPUChainedStruct{
+            .sType = wgpu.WGPUSType_ShaderSourceWGSL,
+        },
+        .code = wgpu.WGPUStringView{
+            .data = compute_shader.ptr,
+            .length = compute_shader.len,
+        },
+    };
     const shader_module = wgpu.wgpuDeviceCreateShaderModule(device.?, &wgpu.WGPUShaderModuleDescriptor{
         .label = wgpu.WGPUStringView{
             .data = "compute.wgsl",
             .length = wgpu.WGPU_STRLEN, // Treat as null-terminated string
         },
-        .nextInChain = @ptrCast(&wgpu.WGPUShaderSourceWGSL{
-            .chain = wgpu.WGPUChainedStruct{
-                .sType = wgpu.WGPUSType_ShaderSourceWGSL,
-            },
-            .code = wgpu.WGPUStringView{
-                .data = compute_shader.ptr,
-                .length = compute_shader.len,
-            },
-        }),
+        .nextInChain = &shader_source.chain,
     });
     defer wgpu.wgpuShaderModuleRelease(shader_module);
 
@@ -128,7 +131,7 @@ fn compute_collatz() [4]u32 {
             .data = "compute_pipeline",
             .length = wgpu.WGPU_STRLEN,
         },
-        .compute = wgpu.WGPUProgrammableStageDescriptor{
+        .compute = wgpu.WGPUComputeState{
             .module = shader_module,
             .entryPoint = wgpu.WGPUStringView{
                 .data = "main",
@@ -213,7 +216,7 @@ fn compute_collatz() [4]u32 {
 }
 
 test "compute functionality" {
-    const values = compute_collatz();
+    const values = compute_collatz() catch return error.SkipZigTest;
 
     try testing.expect(values[0] == 0);
     try testing.expect(values[1] == 1);

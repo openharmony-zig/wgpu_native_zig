@@ -73,7 +73,7 @@ const Texture = _texture.Texture;
 pub const DeviceLostReason = enum(u32) {
     unknown = 0x00000001,
     destroyed = 0x00000002,
-    instance_dropped = 0x00000003,
+    callback_cancelled = 0x00000003,
     failed_creation = 0x00000004,
 };
 
@@ -156,9 +156,8 @@ pub const DeviceDescriptor = extern struct {
 
 pub const RequestDeviceStatus = enum(u32) {
     success = 0x00000001,
-    instance_dropped = 0x00000002,
+    callback_cancelled = 0x00000002,
     @"error" = 0x00000003,
-    unknown = 0x00000004,
 };
 
 // TODO: This probably belongs in adapter.zig
@@ -183,8 +182,8 @@ pub const RequestDeviceCallbackInfo = extern struct {
 
 pub const PopErrorScopeStatus = enum(u32) {
     success = 0x00000001, // The error scope stack was successfully popped and a result was reported.
-    instance_dropped = 0x00000002,
-    empty_stack = 0x00000003, // The error scope stack could not be popped, because it was empty.
+    callback_cancelled = 0x00000002,
+    @"error" = 0x00000003, // The error scope stack could not be popped, because it was empty.
 };
 
 // status
@@ -265,7 +264,7 @@ extern fn wgpuDeviceCreateSampler(device: *Device, descriptor: *const SamplerDes
 extern fn wgpuDeviceCreateShaderModule(device: *Device, descriptor: *const ShaderModuleDescriptor) ?*ShaderModule;
 extern fn wgpuDeviceCreateTexture(device: *Device, descriptor: *const TextureDescriptor) ?*Texture;
 extern fn wgpuDeviceDestroy(device: *Device) void;
-extern fn wgpuDeviceGetAdapterInfo(device: *Device) AdapterInfo;
+extern fn wgpuDeviceGetAdapterInfo(device: *Device, adapter_info: *AdapterInfo) Status;
 extern fn wgpuDeviceGetFeatures(device: *Device, features: *SupportedFeatures) void;
 extern fn wgpuDeviceGetLimits(device: *Device, limits: *Limits) Status;
 extern fn wgpuDeviceGetLostFuture(device: *Device) Future;
@@ -298,8 +297,8 @@ pub const Device = opaque {
         return wgpuDeviceCreateComputePipeline(self, descriptor);
     }
 
-    // Unimplemented as of wgpu-native v25.0.2.1,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d8238888998db26ceab41942f269da0fa32b890c/src/unimplemented.rs#L67
+    // Unimplemented as of wgpu-native v29.0.0.0,
+    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
     // pub inline fn createComputePipelineAsync(self: *Device, descriptor: *const ComputePipelineDescriptor, callback_info: CreateComputePipelineAsyncCallbackInfo) Future {
     //     return wgpuDeviceCreateComputePipelineAsync(self, descriptor, callback_info);
     // }
@@ -317,8 +316,8 @@ pub const Device = opaque {
         return wgpuDeviceCreateRenderPipeline(self, descriptor);
     }
 
-    // Unimplemented as of wgpu-native v25.0.2.1,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d8238888998db26ceab41942f269da0fa32b890c/src/unimplemented.rs#L76
+    // Unimplemented as of wgpu-native v29.0.0.0,
+    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
     // pub inline fn createRenderPipelineAsync(self: *Device, descriptor: *const RenderPipelineDescriptor, callback_info: CreateRenderPipelineAsyncCallbackInfo) Future {
     //     return wgpuDeviceCreateRenderPipelineAsync(self, descriptor, callback_info);
     // }
@@ -336,10 +335,10 @@ pub const Device = opaque {
         wgpuDeviceDestroy(self);
     }
 
-    // Unimplemented as of wgpu-native v25.0.2.1,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d8238888998db26ceab41942f269da0fa32b890c/src/unimplemented.rs#L85
-    // pub inline fn getAdapterInfo(self: *Device) AdapterInfo {
-    //     return wgpuDeviceGetAdapterInfo(self);
+    // Unimplemented as of wgpu-native v29.0.0.0,
+    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
+    // pub inline fn getAdapterInfo(self: *Device, adapter_info: *AdapterInfo) Status {
+    //     return wgpuDeviceGetAdapterInfo(self, adapter_info);
     // }
 
     pub inline fn getFeatures(self: *Device, features: *SupportedFeatures) void {
@@ -349,8 +348,8 @@ pub const Device = opaque {
         return wgpuDeviceGetLimits(self, limits);
     }
 
-    // Unimplemented as of wgpu-native v25.0.2.1,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d8238888998db26ceab41942f269da0fa32b890c/src/unimplemented.rs#L90
+    // Unimplemented as of wgpu-native v29.0.0.0,
+    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
     // Returns the Future for the device-lost event of the device.
     // pub inline fn getLostFuture(self: *Device) Future {
     //     return wgpuDeviceGetLostFuture(self);
@@ -370,8 +369,8 @@ pub const Device = opaque {
         wgpuDevicePushErrorScope(self, filter);
     }
 
-    // Unimplemented as of wgpu-native v25.0.2.1,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d8238888998db26ceab41942f269da0fa32b890c/src/unimplemented.rs#L95
+    // Unimplemented as of wgpu-native v29.0.0.0,
+    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
     // pub inline fn setLabel(self: *Device, label: []const u8) void {
     //     wgpuDeviceSetLabel(self, StringView.fromSlice(label));
     // }

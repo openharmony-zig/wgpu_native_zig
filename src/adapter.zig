@@ -55,6 +55,7 @@ pub const BackendType = enum(u32) {
 };
 
 pub const FeatureLevel = enum(u32) {
+    undefined = 0x00000000,
     compatibility = 0x00000001, // "Compatibility" profile which can be supported on OpenGL ES 3.1.
     core = 0x00000002, // "Core" profile which can be supported on Vulkan/Metal/D3D12.
 };
@@ -84,12 +85,18 @@ pub const RequestAdapterOptions = extern struct {
     compatible_surface: ?*Surface = null,
 };
 
+pub const RequestAdapterWebXROptions = extern struct {
+    chain: ChainedStruct = .{
+        .s_type = .request_adapter_webxr_options,
+    },
+    xr_compatible: WGPUBool = @intFromBool(false),
+};
+
 pub const RequestAdapterStatus = enum(u32) {
     success = 0x00000001,
-    instance_dropped = 0x00000002,
+    callback_cancelled = 0x00000002,
     unavailable = 0x00000003,
     @"error" = 0x00000004,
-    unknown = 0x00000005,
 };
 
 pub const RequestAdapterCallbackInfo = extern struct {
@@ -134,6 +141,8 @@ pub const AdapterInfo = extern struct {
     adapter_type: AdapterType,
     vendor_id: u32,
     device_id: u32,
+    subgroup_min_size: u32,
+    subgroup_max_size: u32,
 
     pub inline fn freeMembers(self: AdapterInfo) void {
         wgpuAdapterInfoFreeMembers(self);
@@ -228,16 +237,21 @@ pub const Adapter = opaque {
 test "can request device" {
     const testing = @import("std").testing;
 
-    const instance = Instance.create(null);
-    const adapter_response = try instance.?.requestAdapterSync(std.testing.io, null, 200_000_000);
+    const instance = Instance.create(null).?;
+    defer instance.release();
+    const adapter_response = try instance.requestAdapterSync(std.testing.io, null, 200_000_000);
     const adapter: ?*Adapter = switch (adapter_response.status) {
         .success => adapter_response.adapter,
         else => null,
     };
-    const device_response = try adapter.?.requestDeviceSync(std.testing.io, instance.?, null, 200_000_000);
+    if (adapter == null) return error.SkipZigTest;
+    defer adapter.?.release();
+    const device_response = try adapter.?.requestDeviceSync(std.testing.io, instance, null, 200_000_000);
     const device: ?*Device = switch (device_response.status) {
         .success => device_response.device,
         else => null,
     };
+    if (device == null) return error.SkipZigTest;
+    defer device.?.release();
     try testing.expect(device != null);
 }

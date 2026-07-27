@@ -4,7 +4,6 @@ const SType = _chained_struct.SType;
 
 const _shader = @import("shader.zig");
 const ShaderModule = _shader.ShaderModule;
-const ShaderStage = _shader.ShaderStage;
 
 const BindGroupLayout = @import("bind_group.zig").BindGroupLayout;
 
@@ -21,18 +20,11 @@ const CallbackMode = _async.CallbackMode;
 
 const TextureFormat = @import("texture.zig").TextureFormat;
 
-pub const PushConstantRange = extern struct {
-    stages: ShaderStage,
-    start: u32,
-    end: u32,
-};
-
 pub const PipelineLayoutExtras = extern struct {
     chain: ChainedStruct = ChainedStruct{
         .s_type = SType.pipeline_layout_extras,
     },
-    push_constant_range_count: usize,
-    push_constant_ranges: [*]const PushConstantRange,
+    immediate_data_size: u32 = 0,
 };
 
 pub const PipelineLayoutDescriptor = extern struct {
@@ -40,12 +32,12 @@ pub const PipelineLayoutDescriptor = extern struct {
     label: StringView = StringView{},
     bind_group_layout_count: usize,
     bind_group_layouts: [*]const *BindGroupLayout,
+    immediate_size: u32 = 0,
 
-    pub inline fn withPushConstantRanges(self: PipelineLayoutDescriptor, push_constant_range_count: usize, push_constant_ranges: [*]const PushConstantRange) PipelineLayoutDescriptor {
+    pub inline fn withImmediateDataSize(self: PipelineLayoutDescriptor, immediate_data_size: u32) PipelineLayoutDescriptor {
         var pld = self;
         pld.next_in_chain = @ptrCast(&PipelineLayoutExtras{
-            .push_constant_range_count = push_constant_range_count,
-            .push_constant_ranges = push_constant_ranges,
+            .immediate_data_size = immediate_data_size,
         });
         return pld;
     }
@@ -63,8 +55,8 @@ extern fn wgpuPipelineLayoutRelease(pipeline_layout: *PipelineLayout) void;
 
 pub const PipelineLayout = opaque {
 
-    // Unimplemented as of wgpu-native v25.0.2.1,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d8238888998db26ceab41942f269da0fa32b890c/src/unimplemented.rs#L116
+    // Unimplemented as of wgpu-native v29.0.0.0,
+    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
     // pub inline fn setLabel(self: *PipelineLayout, label: []const u8) void {
     //     wgpuPipelineLayoutSetLabel(self, StringView.fromSlice(label));
     // }
@@ -83,7 +75,7 @@ pub const ConstantEntry = extern struct {
     value: f64,
 };
 
-pub const ProgrammableStageDescriptor = extern struct {
+pub const ComputeState = extern struct {
     next_in_chain: ?*const ChainedStruct = null,
     module: *ShaderModule,
     entry_point: StringView = StringView{},
@@ -95,15 +87,14 @@ pub const ComputePipelineDescriptor = extern struct {
     next_in_chain: ?*const ChainedStruct = null,
     label: StringView = StringView{},
     layout: ?*PipelineLayout = null,
-    compute: ProgrammableStageDescriptor,
+    compute: ComputeState,
 };
 
 pub const CreatePipelineAsyncStatus = enum(u32) {
     success = 0x00000001,
-    instance_dropped = 0x00000002,
+    callback_cancelled = 0x00000002,
     validation_error = 0x00000003,
     internal_error = 0x00000004,
-    unknown = 0x00000005,
 };
 
 pub const CreateComputePipelineAsyncCallbackInfo = extern struct {
@@ -143,8 +134,8 @@ pub const ComputePipeline = opaque {
         return wgpuComputePipelineGetBindGroupLayout(self, group_index);
     }
 
-    // Unimplemented as of wgpu-native v25.0.2.1,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d8238888998db26ceab41942f269da0fa32b890c/src/unimplemented.rs#L59
+    // Unimplemented as of wgpu-native v29.0.0.0,
+    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
     // pub inline fn setLabel(self: *ComputePipeline, label: []const u8) void {
     //     wgpuComputePipelineSetLabel(self, StringView.fromSlice(label));
     // }
@@ -158,10 +149,9 @@ pub const ComputePipeline = opaque {
 };
 
 pub const VertexStepMode = enum(u32) {
-    vertex_buffer_not_used = 0x00000000, // This VertexBufferLayout is a "hole" in the VertexState `buffers` array.
-    undefined = 0x00000001, // Indicates no value is passed for this argument.
-    vertex = 0x00000002,
-    instance = 0x00000003,
+    undefined = 0x00000000, // Indicates no value is passed for this argument.
+    vertex = 0x00000001,
+    instance = 0x00000002,
 };
 
 pub const VertexFormat = enum(u32) {
@@ -209,16 +199,19 @@ pub const VertexFormat = enum(u32) {
 };
 
 pub const VertexAttribute = extern struct {
+    next_in_chain: ?*const ChainedStruct = null,
     format: VertexFormat,
     offset: u64,
     shader_location: u32,
 };
 
 pub const VertexBufferLayout = extern struct {
+    next_in_chain: ?*const ChainedStruct = null,
+
     // The step mode for the vertex buffer. If VertexStepMode.vertex_buffer_not_used,
     // indicates a "hole" in the parent VertexState `buffers` array:
     // the pipeline does not use a vertex buffer at this `location`.
-    step_mode: VertexStepMode = VertexStepMode.vertex,
+    step_mode: VertexStepMode = VertexStepMode.undefined,
 
     array_stride: u64,
     attribute_count: usize,
@@ -264,6 +257,20 @@ pub const PrimitiveState = extern struct {
     front_face: FrontFace = FrontFace.ccw,
     cull_mode: CullMode = CullMode.none,
     unclipped_depth: WGPUBool = @intFromBool(false),
+};
+
+pub const PolygonMode = enum(u32) {
+    fill = 0,
+    line = 1,
+    point = 2,
+};
+
+pub const PrimitiveStateExtras = extern struct {
+    chain: ChainedStruct = .{
+        .s_type = .primitive_state_extras,
+    },
+    polygon_mode: PolygonMode = .fill,
+    conservative: WGPUBool = @intFromBool(false),
 };
 
 pub const StencilOperation = enum(u32) {
@@ -437,8 +444,8 @@ pub const RenderPipeline = opaque {
         return wgpuRenderPipelineGetBindGroupLayout(self, group_index);
     }
 
-    // Unimplemented as of wgpu-native v25.0.2.1,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d8238888998db26ceab41942f269da0fa32b890c/src/unimplemented.rs#L161
+    // Unimplemented as of wgpu-native v29.0.0.0,
+    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
     // pub inline fn setLabel(self: *RenderPipeline, label: []const u8) void {
     //     wgpuRenderPipelineSetLabel(self, StringView.fromSlice(label));
     // }
