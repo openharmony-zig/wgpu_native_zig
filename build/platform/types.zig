@@ -18,4 +18,5 @@ pub const Config = struct {
     dynamic_import_name: ?[]const u8 = null,
     clang_target: ?[]const u8 = null,
     ohos_library_target: ?[]const u8 = null,
+    apple_sdk_root: ?[]const u8 = null,
 };

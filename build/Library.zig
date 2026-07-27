@@ -111,6 +111,7 @@ pub fn build(b: *std.Build, options: Options) ?Result {
         .target = options.target,
         .optimize = options.optimize,
     });
+    Platform.configureTranslateC(platform, translate_step);
     const wgpu_c_mod = translate_step.addModule("wgpu-c");
     wgpu_c_mod.resolved_target = options.target;
 

@@ -54,6 +54,19 @@ pub fn configureModule(
     }
 }
 
+pub fn configureTranslateC(
+    config: Config,
+    translate_c: *std.Build.Step.TranslateC,
+) void {
+    switch (config.kind) {
+        .android => android.configureTranslateC(config, translate_c),
+        .apple => apple.configureTranslateC(config, translate_c),
+        .linux => linux.configureTranslateC(config, translate_c),
+        .ohos => ohos.configureTranslateC(config, translate_c),
+        .windows => windows.configureTranslateC(config, translate_c),
+    }
+}
+
 pub fn configureCompile(
     config: Config,
     compile: *std.Build.Step.Compile,

@@ -79,6 +79,11 @@ pub fn configureModule(
     mod.addObjectFile(library_dir.path(b, "libc.so"));
 }
 
+pub fn configureTranslateC(
+    _: types.Config,
+    _: *std.Build.Step.TranslateC,
+) void {}
+
 pub fn configureCompile(_: types.Config, _: *std.Build.Step.Compile) void {}
 
 pub fn configureTest(

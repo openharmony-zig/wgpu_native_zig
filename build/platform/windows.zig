@@ -81,6 +81,17 @@ pub fn configureModule(
     if (link_mode == .static) linkSystemLibraries(mod, is_gnu);
 }
 
+pub fn configureTranslateC(
+    config: types.Config,
+    translate_c: *std.Build.Step.TranslateC,
+) void {
+    if (config.target.result.abi == .msvc) {
+        // Zig 0.16 translate-c does not accept MSVC's `ui64` literal suffix.
+        // stdint.h guards SIZE_MAX, so define it using the portable builtin.
+        translate_c.defineCMacro("SIZE_MAX", "__SIZE_MAX__");
+    }
+}
+
 pub fn configureCompile(
     config: types.Config,
     compile: *std.Build.Step.Compile,

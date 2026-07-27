@@ -52,6 +52,11 @@ pub fn configureModule(
     _: std.builtin.LinkMode,
 ) void {}
 
+pub fn configureTranslateC(
+    _: types.Config,
+    _: *std.Build.Step.TranslateC,
+) void {}
+
 pub fn configureCompile(_: types.Config, _: *std.Build.Step.Compile) void {}
 
 pub fn configureTest(
