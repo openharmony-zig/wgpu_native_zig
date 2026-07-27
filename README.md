@@ -1,6 +1,8 @@
 # wgpu_native_zig
 Zig bindings for [wgpu-native](https://github.com/gfx-rs/wgpu-native)
 
+Requires Zig 0.16.x.
+
 This package exposes two modules: `wgpu-c` and `wgpu`.
 
 `wgpu-c` is just `wgpu.h` (and by extension `webgpu.h`) run through `translate-c`, so as close to wgpu-native's original C API as is possible in Zig.
@@ -119,7 +121,7 @@ b.getInstallStep().dependOn(&install_dll.step);
         message: StringView,
         userdata1: ?*anyopaque,
         userdata2: ?*anyopaque
-    ) callconv(.C) void {
+    ) callconv(.c) void {
         switch(status) {
             .success => {
                 const ud_adapter: **Adapter = @ptrCast(@alignCast(userdata1));
@@ -148,14 +150,14 @@ b.getInstallStep().dependOn(&install_dll.step);
 
     instance.processEvents();
     while(!completed) {
-      std.Thread.sleep(200_000_000);
+      try io.sleep(.fromNanoseconds(200_000_000), .awake);
       instance.processEvents();
     }
     ```
     whereas the non-callback version looks like
     ```zig
     // The wrapper methods use polling, so 200_000_000 is the polling interval in nanoseconds.
-    const response = instance.requestAdapterSync(null, 200_000_000);
+    const response = try instance.requestAdapterSync(io, null, 200_000_000);
 
     const adapter_ptr: ?*Adapter = switch (response.status) {
         .success => response.adapter,
@@ -200,7 +202,7 @@ b.getInstallStep().dependOn(&install_dll.step);
   * This pretty much means, it is replaced with `bool` in the parameters and return values of methods, but not in structs or the parameters/return values of procs (which are supposed to be function pointers to things returned by `wgpuGetProcAddress`).
 
 ## TODO
-* Test this on other machines with different OS/CPU. Currently only tested on x86_64-linux-gnu and x86_64-windows (msvc and gnu); zig version 0.14.0.
+* Test this on other machines with different OS/CPU. The package requires Zig 0.16.x.
 * Cleanup/organization: 
   * If types are only tied to a specific opaque struct, they should be decls inside that struct.
   * The associated Procs struct should probably be a decl of the opaque struct as well.
