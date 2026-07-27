@@ -16,6 +16,16 @@
     // Once all dependencies are fetched, `zig build` no longer requires
     // internet connectivity.
     .dependencies = .{
+        .wgpu_native_source = .{
+            .url = "https://github.com/gfx-rs/wgpu-native/archive/af9074edf144efe4f1432b2e42c477429c4964c1.tar.gz",
+            .hash = "N-V-__8AAMkXCADZTmf51o8SSzRb6oYEb3rjtHl5duhu7Wzs",
+            .lazy = true,
+        },
+        .webgpu_headers_source = .{
+            .url = "https://github.com/webgpu-native/webgpu-headers/archive/bac520839ff5ed2e2b648ed540bd9ec45edbccbc.tar.gz",
+            .hash = "N-V-__8AAIEJBgDDDaQxHnH7W6qR_NeONW1g8R_Tt0Xe9n_u",
+            .lazy = true,
+        },
         // See `zig fetch --save <url>` for a command-line interface for adding dependencies.
         //.example = .{
         //    // When updating this field to a new URL, be sure to delete the corresponding

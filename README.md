@@ -53,7 +53,7 @@ const target = b.standardTargetOptions(.{
 ```
 Or, specify it with your build command. For example, the triangle example in this repository can be run like so:
 ```sh
-zig build run-triangle-example -Dtarget=x86_64-windows-msvc
+zig build --build-file build.examples.zig run-triangle-example -Dtarget=x86_64-windows-msvc
 ```
 Either way, pass the resolved target to the dependency like so:
 ```zig
@@ -94,6 +94,101 @@ const install_dll = b.addInstallBinFile(dll_path, "wgpu_native.dll");
 // Make sure that the dll is installed when the install step is run
 b.getInstallStep().dependOn(&install_dll.step);
 ```
+
+## Building `wgpu-native`
+
+`wgpu-native` v25.0.2.1 is built from its pinned source commit by default. The matching
+`webgpu-headers` commit is pinned separately, so the generated C ABI does not drift when
+an upstream branch changes.
+
+The source build requires Cargo, a Rust toolchain with the selected target installed,
+and the platform SDK normally required by that target. For example:
+
+```sh
+# Native source build. Installs the static library, dynamic library, and C headers.
+zig build -Doptimize=ReleaseFast
+
+# Compile the bindings and link probes without running them.
+zig build --build-file build.tests.zig check -Doptimize=ReleaseFast
+```
+
+Targets that cannot legally be built on every host still require their native toolchain:
+iOS requires Xcode on macOS, MSVC requires Windows, and Android/OpenHarmony require their
+respective NDKs.
+
+The root `build.zig` only builds `wgpu-native` and exposes the `wgpu`/`wgpu-c` binding
+modules. `build/Library.zig` is the shared library entry point, while
+`build/platform/root.zig` dispatches to the Android, Apple, Linux, OpenHarmony, or
+Windows build implementation. Tests and examples are isolated behind
+`build.tests.zig` and `build.examples.zig`; their implementation stays in the
+corresponding directory.
+
+### Using published prebuilt libraries
+
+Set `WGPU_NATIVE_USE_PREBUILT=1` to skip the Cargo source build and use the published
+`wgpu-native` archive for the selected target:
+
+```sh
+WGPU_NATIVE_USE_PREBUILT=1 zig build --build-file build.tests.zig check \
+  -Dtarget=x86_64-linux-gnu
+```
+
+The equivalent Zig build option is `-Duse_prebuilt=true`. Downstream packages can pass it
+while resolving this dependency:
+
+```zig
+const wgpu_native_dep = b.dependency("wgpu_native_zig", .{
+    .target = target,
+    .optimize = optimize,
+    .use_prebuilt = true,
+});
+```
+
+`WGPU_NATIVE_PREBUILT_DIR=/path/to/prefix` uses a local artifact directory and also
+implies prebuilt mode. The prefix must use the layout produced by this package:
+
+```text
+prefix/
+├── include/webgpu/{webgpu.h,wgpu.h}
+└── lib/
+    ├── libwgpu_native.a
+    └── libwgpu_native.so
+```
+
+Use the platform-specific dynamic and import-library names on Apple and Windows.
+OpenHarmony currently uses this local-directory mechanism when consuming CI artifacts,
+because upstream `wgpu-native` does not publish OpenHarmony archives.
+
+### Supported artifact targets
+
+| Platform | Architectures / ABIs | Source build | Published prebuilt |
+| --- | --- | --- | --- |
+| Android | arm64-v8a, armeabi-v7a, x86, x86_64 | Yes, with `ANDROID_NDK_HOME` | Yes |
+| iOS | arm64 device, arm64 simulator, x86_64 simulator | Yes, on macOS | Yes |
+| Linux | aarch64, x86_64 (GNU); aarch64, x86_64 (musl) | Yes | GNU targets |
+| macOS | aarch64, x86_64 | Yes, on macOS | Yes |
+| Windows | aarch64/x86/x86_64 MSVC, x86/x86_64 GNU | Yes, on Windows | All except x86 GNU |
+| OpenHarmony | arm64-v8a, armeabi-v7a, x86_64 | Yes, with `OHOS_NDK_HOME` | Local CI artifact |
+
+The OpenHarmony commands are:
+
+```sh
+rustup target add \
+  aarch64-unknown-linux-ohos \
+  armv7-unknown-linux-ohos \
+  x86_64-unknown-linux-ohos
+
+zig build --build-file build.tests.zig check \
+  -Dtarget=aarch64-linux-ohos -Doptimize=ReleaseFast
+zig build --build-file build.tests.zig check \
+  -Dtarget=arm-linux-ohoseabi -Doptimize=ReleaseFast
+zig build --build-file build.tests.zig check \
+  -Dtarget=x86_64-linux-ohos -Doptimize=ReleaseFast
+```
+
+The target-artifact workflow builds the complete matrix on Linux x86_64/aarch64, macOS
+arm64/Intel, Windows, Android, and OpenHarmony runners. Every artifact prefix contains
+both link modes and the matching headers.
 
 
 ## How the `wgpu` module differs from `wgpu-c`
@@ -202,7 +297,6 @@ b.getInstallStep().dependOn(&install_dll.step);
   * This pretty much means, it is replaced with `bool` in the parameters and return values of methods, but not in structs or the parameters/return values of procs (which are supposed to be function pointers to things returned by `wgpuGetProcAddress`).
 
 ## TODO
-* Test this on other machines with different OS/CPU. The package requires Zig 0.16.x.
 * Cleanup/organization: 
   * If types are only tied to a specific opaque struct, they should be decls inside that struct.
   * The associated Procs struct should probably be a decl of the opaque struct as well.
@@ -210,6 +304,5 @@ b.getInstallStep().dependOn(&install_dll.step);
     * For example a lot of what is in `pipeline.zig` is actually only used by `Device`, and should probably be in `device.zig` instead.
   * Since pointers to opaque structs are made explicit, it would be more consistent if pointers to callback functions are explicit as well.
 * Port [wgpu-native-examples](https://github.com/samdauwe/webgpu-native-examples) using wrapper code, as a basic form of documentation.
-* Custom-build `wgpu-native`; provided all the necessary tools/dependencies are present.
 * Bindgen using [the webgpu-headers yaml](https://github.com/webgpu-native/webgpu-headers/blob/main/webgpu.yml)?
 * The proc definitions are mainly there since they are also present in the webgpu headers and I didn't fully understand what they were for when I started working on this project. However, I know better now and they aren't really used for anything currently. They're supposed to be used with `wgpuGetProcAddress` but it's [unimplemented in `wgpu-native`](https://github.com/gfx-rs/wgpu-native/issues/223). They are a pain to update by hand, so maybe they should be removed for now and made optional once we have a working bindings generator? Like the bindgen could put them in a separate `wgpu-procs` module.
