@@ -10,7 +10,7 @@ pub const CallbackMode = enum(u32) {
     // - fire when the asynchronous operation's future is passed to a call to `::wgpuInstanceWaitAny`
     //   AND the operation has already completed or it completes inside the call to `::wgpuInstanceWaitAny`.
     //
-    wait_any_only        = 0x00000001,
+    wait_any_only = 0x00000001,
     //
     // `0x00000002`.
     // Callbacks created with `allow_process_events`:
@@ -29,22 +29,22 @@ pub const CallbackMode = enum(u32) {
     // Because spontaneous callbacks may fire at an arbitrary time on an arbitrary thread, applications should take extra care when acquiring locks or mutating state inside the callback.
     // It undefined behavior to re-entrantly call into the webgpu.h API if the callback fires while inside the callstack of another webgpu.h function that is not `wgpuInstanceWaitAny` or `wgpuInstanceProcessEvents`.
     //
-    allow_spontaneous    = 0x00000003,
+    allow_spontaneous = 0x00000003,
 };
 
 // Status returned from a call to ::wgpuInstanceWaitAny.
 pub const WaitStatus = enum(u32) {
     // At least one Future completed successfully.
-    success                   = 0x00000001,
+    success = 0x00000001,
 
     // No Futures completed within the timeout.
-    timed_out                 = 0x00000002,
+    timed_out = 0x00000002,
 
     // A Timed-Wait was performed when InstanceCapabilities.timed_wait_any_enable is false.
-    unsupported_timeout       = 0x00000003,
+    unsupported_timeout = 0x00000003,
 
     // The number of futures waited on in a Timed-Wait is greater than the supported InstanceCapabilities.timed_wait_any_max_count.
-    unsupported_count         = 0x00000004,
+    unsupported_count = 0x00000004,
 
     // An invalid wait was performed with Mixed-Sources.
     unsupported_mixed_sources = 0x00000005,
