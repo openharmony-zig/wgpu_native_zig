@@ -1,0 +1,199 @@
+name: Target artifacts
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    name: Linux ${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+            zig_target: x86_64-linux-gnu
+            rust_target: x86_64-unknown-linux-gnu
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+            zig_target: aarch64-linux-gnu
+            rust_target: aarch64-unknown-linux-gnu
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+      - name: Build static and dynamic libraries
+        run: zig build -Dtarget=${{ matrix.zig_target }} -Doptimize=ReleaseFast -p dist/wgpu-linux-${{ matrix.arch }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wgpu-linux-${{ matrix.arch }}
+          path: dist/wgpu-linux-${{ matrix.arch }}
+
+  apple:
+    name: ${{ matrix.artifact }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - artifact: wgpu-macos-aarch64
+            runner: macos-latest
+            zig_target: aarch64-macos
+            rust_target: aarch64-apple-darwin
+          - artifact: wgpu-macos-x86_64
+            runner: macos-15-intel
+            zig_target: x86_64-macos
+            rust_target: x86_64-apple-darwin
+          - artifact: wgpu-ios-aarch64
+            runner: macos-latest
+            zig_target: aarch64-ios
+            rust_target: aarch64-apple-ios
+          - artifact: wgpu-ios-aarch64-simulator
+            runner: macos-latest
+            zig_target: aarch64-ios-simulator
+            rust_target: aarch64-apple-ios-sim
+          - artifact: wgpu-ios-x86_64-simulator
+            runner: macos-15-intel
+            zig_target: x86_64-ios-simulator
+            rust_target: x86_64-apple-ios
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+      - name: Build static and dynamic libraries
+        run: zig build -Dtarget=${{ matrix.zig_target }} -Doptimize=ReleaseFast -p dist/${{ matrix.artifact }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/${{ matrix.artifact }}
+
+  windows:
+    name: ${{ matrix.artifact }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - artifact: wgpu-windows-aarch64-msvc
+            zig_target: aarch64-windows-msvc
+            rust_target: aarch64-pc-windows-msvc
+            rust_toolchain: stable-msvc
+          - artifact: wgpu-windows-x86-msvc
+            zig_target: x86-windows-msvc
+            rust_target: i686-pc-windows-msvc
+            rust_toolchain: stable-msvc
+          - artifact: wgpu-windows-x86_64-msvc
+            zig_target: x86_64-windows-msvc
+            rust_target: x86_64-pc-windows-msvc
+            rust_toolchain: stable-msvc
+          - artifact: wgpu-windows-x86_64-gnu
+            zig_target: x86_64-windows-gnu
+            rust_target: x86_64-pc-windows-gnu
+            rust_toolchain: stable-gnu
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ matrix.rust_toolchain }}
+          targets: ${{ matrix.rust_target }}
+      - name: Build static and dynamic libraries
+        run: zig build -Dtarget=${{ matrix.zig_target }} -Doptimize=ReleaseFast -p dist/${{ matrix.artifact }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/${{ matrix.artifact }}
+
+  android:
+    name: Android ${{ matrix.abi }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - abi: arm64-v8a
+            zig_target: aarch64-linux-android
+            rust_target: aarch64-linux-android
+          - abi: armeabi-v7a
+            zig_target: arm-linux-androideabi
+            rust_target: armv7-linux-androideabi
+          - abi: x86
+            zig_target: x86-linux-android
+            rust_target: i686-linux-android
+          - abi: x86_64
+            zig_target: x86_64-linux-android
+            rust_target: x86_64-linux-android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+      - name: Select Android NDK
+        shell: bash
+        run: |
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --install "ndk;27.0.12077973"
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/27.0.12077973" >> "$GITHUB_ENV"
+      - name: Build static and dynamic libraries
+        run: zig build -Dtarget=${{ matrix.zig_target }} -Doptimize=ReleaseFast -p dist/wgpu-android-${{ matrix.abi }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wgpu-android-${{ matrix.abi }}
+          path: dist/wgpu-android-${{ matrix.abi }}
+
+  ohos:
+    name: OpenHarmony ${{ matrix.abi }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - abi: arm64-v8a
+            zig_target: aarch64-linux-ohos
+            rust_target: aarch64-unknown-linux-ohos
+          - abi: armeabi-v7a
+            zig_target: arm-linux-ohoseabi
+            rust_target: armv7-unknown-linux-ohos
+          - abi: x86_64
+            zig_target: x86_64-linux-ohos
+            rust_target: x86_64-unknown-linux-ohos
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup OpenHarmony SDK
+        uses: openharmony-rs/setup-ohos-sdk@v1.0.0
+        with:
+          version: "5.0.0"
+      - name: Setup Zig with OpenHarmony targets
+        uses: openharmony-zig/setup-zig-ohos@v0.1.1
+        with:
+          tag: "0.16.0"
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+      - name: Compile and link the Zig binding probe
+        run: zig build --build-file build.tests.zig check -Dtarget=${{ matrix.zig_target }} -Doptimize=ReleaseFast --summary all
+      - name: Build static and dynamic libraries
+        run: zig build -Dtarget=${{ matrix.zig_target }} -Doptimize=ReleaseFast -p dist/wgpu-ohos-${{ matrix.abi }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wgpu-ohos-${{ matrix.abi }}
+          path: dist/wgpu-ohos-${{ matrix.abi }}

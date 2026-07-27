@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  formatting:
+    name: Zig 0.16 formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+      - name: Check formatting
+        shell: bash
+        run: |
+          git ls-files -z '*.zig' '*.zon' | xargs -0 zig fmt --check
+
+  native:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x86_64
+            runner: ubuntu-latest
+            zig_target: x86_64-linux-gnu
+            rust_target: x86_64-unknown-linux-gnu
+          - name: macOS arm64
+            runner: macos-latest
+            zig_target: aarch64-macos
+            rust_target: aarch64-apple-darwin
+          - name: Windows x86_64 MSVC
+            runner: windows-latest
+            zig_target: x86_64-windows-msvc
+            rust_target: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+      - name: Install Linux Vulkan software driver
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes mesa-vulkan-drivers
+      - name: Build wgpu-native from source
+        run: zig build -Dtarget=${{ matrix.zig_target }} -Doptimize=ReleaseFast --summary all
+      - name: Compile bindings and tests
+        run: zig build --build-file build.tests.zig check -Dtarget=${{ matrix.zig_target }} -Doptimize=ReleaseFast --summary all
+      - name: Run native unit tests
+        run: zig build --build-file build.tests.zig test -Dtarget=${{ matrix.zig_target }} -Doptimize=ReleaseFast -j1 --summary all
+      - name: Verify prebuilt fallback
+        env:
+          WGPU_NATIVE_USE_PREBUILT: "1"
+        run: zig build --build-file build.tests.zig check -Dtarget=${{ matrix.zig_target }} -Doptimize=ReleaseFast --summary all
