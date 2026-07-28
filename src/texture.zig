@@ -1,3 +1,4 @@
+const raw = @import("raw.zig");
 const ChainedStruct = @import("chained_struct.zig").ChainedStruct;
 
 const _misc = @import("misc.zig");
@@ -185,16 +186,6 @@ pub const TextureComponentSwizzleDescriptor = extern struct {
     swizzle: TextureComponentSwizzle = .{},
 };
 
-pub const TextureViewProcs = struct {
-    pub const SetLabel = *const fn (*TextureView, StringView) callconv(.c) void;
-    pub const AddRef = *const fn (*TextureView) callconv(.c) void;
-    pub const Release = *const fn (*TextureView) callconv(.c) void;
-};
-
-extern fn wgpuTextureViewSetLabel(texture_view: *TextureView, label: StringView) void;
-extern fn wgpuTextureViewAddRef(texture_view: *TextureView) void;
-extern fn wgpuTextureViewRelease(texture_view: *TextureView) void;
-
 pub const TextureView = opaque {
     // Unimplemented as of wgpu-native v29.0.0.0,
     // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
@@ -203,10 +194,10 @@ pub const TextureView = opaque {
     // }
 
     pub inline fn addRef(self: *TextureView) void {
-        wgpuTextureViewAddRef(self);
+        raw.call(void, "wgpuTextureViewAddRef", .{self});
     }
     pub inline fn release(self: *TextureView) void {
-        wgpuTextureViewRelease(self);
+        raw.call(void, "wgpuTextureViewRelease", .{self});
     }
 };
 
@@ -294,66 +285,36 @@ pub const TextureDescriptor = extern struct {
     view_formats: [*]const TextureFormat = &[_]TextureFormat{},
 };
 
-pub const TextureProcs = struct {
-    pub const CreateView = *const fn (*Texture, ?*const TextureViewDescriptor) callconv(.c) ?*TextureView;
-    pub const Destroy = *const fn (*Texture) callconv(.c) void;
-    pub const GetDepthOrArrayLayers = *const fn (*Texture) callconv(.c) u32;
-    pub const GetDimension = *const fn (*Texture) callconv(.c) TextureDimension;
-    pub const GetFormat = *const fn (*Texture) callconv(.c) TextureFormat;
-    pub const GetHeight = *const fn (*Texture) callconv(.c) u32;
-    pub const GetMipLevelCount = *const fn (*Texture) callconv(.c) u32;
-    pub const GetSampleCount = *const fn (*Texture) callconv(.c) u32;
-    pub const GetUsage = *const fn (*Texture) callconv(.c) TextureUsage;
-    pub const GetWidth = *const fn (*Texture) callconv(.c) u32;
-    pub const SetLabel = *const fn (*Texture, StringView) callconv(.c) void;
-    pub const AddRef = *const fn (*Texture) callconv(.c) void;
-    pub const Release = *const fn (*Texture) callconv(.c) void;
-};
-
-extern fn wgpuTextureCreateView(texture: *Texture, descriptor: ?*const TextureViewDescriptor) ?*TextureView;
-extern fn wgpuTextureDestroy(texture: *Texture) void;
-extern fn wgpuTextureGetDepthOrArrayLayers(texture: *Texture) u32;
-extern fn wgpuTextureGetDimension(texture: *Texture) TextureDimension;
-extern fn wgpuTextureGetFormat(texture: *Texture) TextureFormat;
-extern fn wgpuTextureGetHeight(texture: *Texture) u32;
-extern fn wgpuTextureGetMipLevelCount(texture: *Texture) u32;
-extern fn wgpuTextureGetSampleCount(texture: *Texture) u32;
-extern fn wgpuTextureGetUsage(texture: *Texture) TextureUsage;
-extern fn wgpuTextureGetWidth(texture: *Texture) u32;
-extern fn wgpuTextureSetLabel(texture: *Texture, label: StringView) void;
-extern fn wgpuTextureAddRef(texture: *Texture) void;
-extern fn wgpuTextureRelease(texture: *Texture) void;
-
 pub const Texture = opaque {
     pub inline fn createView(self: *Texture, descriptor: ?*const TextureViewDescriptor) ?*TextureView {
-        return wgpuTextureCreateView(self, descriptor);
+        return raw.call(?*TextureView, "wgpuTextureCreateView", .{ self, descriptor });
     }
     pub inline fn destroy(self: *Texture) void {
-        wgpuTextureDestroy(self);
+        raw.call(void, "wgpuTextureDestroy", .{self});
     }
     pub inline fn getDepthOrArrayLayers(self: *Texture) u32 {
-        return wgpuTextureGetDepthOrArrayLayers(self);
+        return raw.call(u32, "wgpuTextureGetDepthOrArrayLayers", .{self});
     }
     pub inline fn getDimension(self: *Texture) TextureDimension {
-        return wgpuTextureGetDimension(self);
+        return raw.call(TextureDimension, "wgpuTextureGetDimension", .{self});
     }
     pub inline fn getFormat(self: *Texture) TextureFormat {
-        return wgpuTextureGetFormat(self);
+        return raw.call(TextureFormat, "wgpuTextureGetFormat", .{self});
     }
     pub inline fn getHeight(self: *Texture) u32 {
-        return wgpuTextureGetHeight(self);
+        return raw.call(u32, "wgpuTextureGetHeight", .{self});
     }
     pub inline fn getMipLevelCount(self: *Texture) u32 {
-        return wgpuTextureGetMipLevelCount(self);
+        return raw.call(u32, "wgpuTextureGetMipLevelCount", .{self});
     }
     pub inline fn getSampleCount(self: *Texture) u32 {
-        return wgpuTextureGetSampleCount(self);
+        return raw.call(u32, "wgpuTextureGetSampleCount", .{self});
     }
     pub inline fn getUsage(self: *Texture) TextureUsage {
-        return wgpuTextureGetUsage(self);
+        return raw.call(TextureUsage, "wgpuTextureGetUsage", .{self});
     }
     pub inline fn getWidth(self: *Texture) u32 {
-        return wgpuTextureGetWidth(self);
+        return raw.call(u32, "wgpuTextureGetWidth", .{self});
     }
 
     // Unimplemented as of wgpu-native v29.0.0.0,
@@ -363,10 +324,10 @@ pub const Texture = opaque {
     // }
 
     pub inline fn addRef(self: *Texture) void {
-        wgpuTextureAddRef(self);
+        raw.call(void, "wgpuTextureAddRef", .{self});
     }
     pub inline fn release(self: *Texture) void {
-        wgpuTextureRelease(self);
+        raw.call(void, "wgpuTextureRelease", .{self});
     }
 };
 

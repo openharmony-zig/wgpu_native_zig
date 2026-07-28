@@ -1,3 +1,4 @@
+const raw = @import("raw.zig");
 const std = @import("std");
 
 const _chained_struct = @import("chained_struct.zig");
@@ -146,7 +147,7 @@ pub const SupportedInstanceFeatures = extern struct {
     features: [*]const InstanceFeatureName = &[0]InstanceFeatureName{},
 
     pub inline fn freeMembers(self: SupportedInstanceFeatures) void {
-        wgpuSupportedInstanceFeaturesFreeMembers(self);
+        raw.call(void, "wgpuSupportedInstanceFeaturesFreeMembers", .{self});
     }
 };
 
@@ -180,12 +181,6 @@ pub const WGSLLanguageFeatureName = enum(u32) {
     texture_formats_tier_1 = 0x00000009,
 };
 
-pub const SupportedWGSLLanguageFeaturesProcs = struct {
-    pub const FreeMembers = *const fn (SupportedWGSLLanguageFeatures) callconv(.c) void;
-};
-
-extern fn wgpuSupportedWGSLLanguageFeaturesFreeMembers(supported_wgsl_language_features: SupportedWGSLLanguageFeatures) void;
-
 pub const SupportedWGSLLanguageFeatures = extern struct {
     feature_count: usize,
     features: [*]const WGSLLanguageFeatureName,
@@ -196,41 +191,6 @@ pub const SupportedWGSLLanguageFeatures = extern struct {
     //     wgpuSupportedWGSLLanguageFeaturesFreeMembers(self);
     // }
 };
-
-pub const InstanceProcs = struct {
-    pub const CreateInstance = *const fn (?*const InstanceDescriptor) callconv(.c) ?*Instance;
-    pub const GetInstanceFeatures = *const fn (*SupportedInstanceFeatures) callconv(.c) void;
-    pub const GetInstanceLimits = *const fn (*InstanceLimits) callconv(.c) Status;
-    pub const HasInstanceFeature = *const fn (InstanceFeatureName) callconv(.c) WGPUBool;
-
-    pub const CreateSurface = *const fn (*Instance, *const SurfaceDescriptor) callconv(.c) ?*Surface;
-    pub const GetWGSLLanguageFeatures = *const fn (*Instance, *SupportedWGSLLanguageFeatures) callconv(.c) void;
-    pub const HasWGSLLanguageFeature = *const fn (*Instance, WGSLLanguageFeatureName) callconv(.c) WGPUBool;
-    pub const ProcessEvents = *const fn (*Instance) callconv(.c) void;
-    pub const RequestAdapter = *const fn (*Instance, ?*const RequestAdapterOptions, RequestAdapterCallbackInfo) callconv(.c) Future;
-    pub const WaitAny = *const fn (*Instance, usize, ?[*]FutureWaitInfo, u64) callconv(.c) WaitStatus;
-    pub const InstanceAddRef = *const fn (*Instance) callconv(.c) void;
-    pub const InstanceRelease = *const fn (*Instance) callconv(.c) void;
-
-    // wgpu-native procs?
-    // pub const GenerateReport = *const fn(*Instance, *GlobalReport) callconv(.c) void;
-    // pub const EnumerateAdapters = *const fn(*Instance, ?*const EnumerateAdapterOptions, ?[*]Adapter) callconv(.c) usize;
-};
-
-extern fn wgpuGetInstanceFeatures(features: *SupportedInstanceFeatures) void;
-extern fn wgpuGetInstanceLimits(limits: *InstanceLimits) Status;
-extern fn wgpuHasInstanceFeature(feature: InstanceFeatureName) WGPUBool;
-extern fn wgpuSupportedInstanceFeaturesFreeMembers(features: SupportedInstanceFeatures) void;
-
-extern fn wgpuCreateInstance(descriptor: ?*const InstanceDescriptor) ?*Instance;
-extern fn wgpuInstanceCreateSurface(instance: *Instance, descriptor: *const SurfaceDescriptor) ?*Surface;
-extern fn wgpuInstanceGetWGSLLanguageFeatures(instance: *Instance, features: *SupportedWGSLLanguageFeatures) void;
-extern fn wgpuInstanceHasWGSLLanguageFeature(instance: *Instance, feature: WGSLLanguageFeatureName) WGPUBool;
-extern fn wgpuInstanceProcessEvents(instance: *Instance) void;
-extern fn wgpuInstanceRequestAdapter(instance: *Instance, options: ?*const RequestAdapterOptions, callback_info: RequestAdapterCallbackInfo) Future;
-extern fn wgpuInstanceWaitAny(instance: *Instance, future_count: usize, futures: ?[*]FutureWaitInfo, timeout_ns: u64) WaitStatus;
-extern fn wgpuInstanceAddRef(instance: *Instance) void;
-extern fn wgpuInstanceRelease(instance: *Instance) void;
 
 pub const RegistryReport = extern struct {
     num_allocated: usize,
@@ -270,29 +230,27 @@ pub const EnumerateAdapterOptions = extern struct {
 };
 
 // wgpu-native
-extern fn wgpuGenerateReport(instance: *Instance, report: *GlobalReport) void;
-extern fn wgpuInstanceEnumerateAdapters(instance: *Instance, options: ?*EnumerateAdapterOptions, adapters: ?[*]*Adapter) usize;
 
 pub const Instance = opaque {
     // This is a global function, but it creates an instance so I put it here.
     pub inline fn create(descriptor: ?*const InstanceDescriptor) ?*Instance {
-        return wgpuCreateInstance(descriptor);
+        return raw.call(?*Instance, "wgpuCreateInstance", .{descriptor});
     }
 
     pub inline fn getFeatures(features: *SupportedInstanceFeatures) void {
-        wgpuGetInstanceFeatures(features);
+        raw.call(void, "wgpuGetInstanceFeatures", .{features});
     }
 
     pub inline fn getLimits(limits: *InstanceLimits) Status {
-        return wgpuGetInstanceLimits(limits);
+        return raw.call(Status, "wgpuGetInstanceLimits", .{limits});
     }
 
     pub inline fn hasFeature(feature: InstanceFeatureName) bool {
-        return wgpuHasInstanceFeature(feature) != 0;
+        return raw.call(WGPUBool, "wgpuHasInstanceFeature", .{feature}) != 0;
     }
 
     pub inline fn createSurface(self: *Instance, descriptor: *const SurfaceDescriptor) ?*Surface {
-        return wgpuInstanceCreateSurface(self, descriptor);
+        return raw.call(?*Surface, "wgpuInstanceCreateSurface", .{ self, descriptor });
     }
 
     // Unimplemented as of wgpu-native v29.0.0.0,
@@ -309,7 +267,7 @@ pub const Instance = opaque {
 
     // Processes asynchronous events on this Instance, calling any callbacks for asynchronous operations created with `CallbackMode.allow_process_events`.
     pub inline fn processEvents(self: *Instance) void {
-        wgpuInstanceProcessEvents(self);
+        raw.call(void, "wgpuInstanceProcessEvents", .{self});
     }
 
     fn defaultAdapterCallback(status: RequestAdapterStatus, adapter: ?*Adapter, message: StringView, userdata1: ?*anyopaque, userdata2: ?*anyopaque) callconv(.c) void {
@@ -339,7 +297,7 @@ pub const Instance = opaque {
             .userdata1 = @ptrCast(&response),
             .userdata2 = @ptrCast(&completed),
         };
-        const adapter_future = wgpuInstanceRequestAdapter(self, options, callback_info);
+        const adapter_future = raw.call(Future, "wgpuInstanceRequestAdapter", .{ self, options, callback_info });
 
         // TODO: Revisit once Instance.waitAny() is implemented in wgpu-native,
         //       it takes in futures and returns when one of them completes.
@@ -354,7 +312,7 @@ pub const Instance = opaque {
     }
 
     pub inline fn requestAdapter(self: *Instance, options: ?*const RequestAdapterOptions, callback_info: RequestAdapterCallbackInfo) Future {
-        return wgpuInstanceRequestAdapter(self, options, callback_info);
+        return raw.call(Future, "wgpuInstanceRequestAdapter", .{ self, options, callback_info });
     }
 
     // Unimplemented as of wgpu-native v29.0.0.0,
@@ -365,19 +323,19 @@ pub const Instance = opaque {
     // }
 
     pub inline fn addRef(self: *Instance) void {
-        wgpuInstanceAddRef(self);
+        raw.call(void, "wgpuInstanceAddRef", .{self});
     }
 
     pub inline fn release(self: *Instance) void {
-        wgpuInstanceRelease(self);
+        raw.call(void, "wgpuInstanceRelease", .{self});
     }
 
     // wgpu-native
     pub inline fn generateReport(self: *Instance, report: *GlobalReport) void {
-        wgpuGenerateReport(self, report);
+        raw.call(void, "wgpuGenerateReport", .{ self, report });
     }
     pub inline fn enumerateAdapters(self: *Instance, options: ?*EnumerateAdapterOptions, adapters: ?[*]*Adapter) usize {
-        return wgpuInstanceEnumerateAdapters(self, options, adapters);
+        return raw.call(usize, "wgpuInstanceEnumerateAdapters", .{ self, options, adapters });
     }
 };
 

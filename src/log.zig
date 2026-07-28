@@ -1,3 +1,4 @@
+const raw = @import("raw.zig");
 const StringView = @import("misc.zig").StringView;
 
 pub const LogLevel = enum(u32) {
@@ -11,12 +12,9 @@ pub const LogLevel = enum(u32) {
 
 pub const LogCallback = *const fn (level: LogLevel, message: StringView, userdata: ?*anyopaque) callconv(.c) void;
 
-extern fn wgpuSetLogCallback(callback: LogCallback, userdata: ?*anyopaque) void;
-extern fn wgpuSetLogLevel(level: LogLevel) void;
-
 pub inline fn setLogCallback(callback: LogCallback, userdata: ?*anyopaque) void {
-    wgpuSetLogCallback(callback, userdata);
+    raw.call(void, "wgpuSetLogCallback", .{ callback, userdata });
 }
 pub inline fn setLogLevel(level: LogLevel) void {
-    wgpuSetLogLevel(level);
+    raw.call(void, "wgpuSetLogLevel", .{level});
 }

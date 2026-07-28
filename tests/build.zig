@@ -45,6 +45,7 @@ fn unitTests(
 ) void {
     const unit_test_step = b.step("test", "Run unit tests");
     const test_files = [_][:0]const u8{
+        "src/raw.zig",
         "src/instance.zig",
         "src/adapter.zig",
         "src/pipeline.zig",
@@ -60,6 +61,7 @@ fn unitTests(
             .target = library.target,
             .optimize = library.optimize,
         });
+        test_mod.addImport("wgpu-header", library.wgpu_c_mod);
         library.linkTestModule(b, test_mod);
         const test_exe = b.addTest(.{
             .name = test_name,

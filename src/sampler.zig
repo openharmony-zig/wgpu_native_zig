@@ -1,3 +1,4 @@
+const raw = @import("raw.zig");
 const ChainedStruct = @import("chained_struct.zig").ChainedStruct;
 
 const _misc = @import("misc.zig");
@@ -55,16 +56,6 @@ pub const SamplerDescriptor = extern struct {
     max_anisotropy: u16 = 1,
 };
 
-pub const SamplerProcs = struct {
-    pub const SetLabel = *const fn (*Sampler, StringView) callconv(.c) void;
-    pub const AddRef = *const fn (*Sampler) callconv(.c) void;
-    pub const Release = *const fn (*Sampler) callconv(.c) void;
-};
-
-extern fn wgpuSamplerSetLabel(sampler: *Sampler, label: StringView) void;
-extern fn wgpuSamplerAddRef(sampler: *Sampler) void;
-extern fn wgpuSamplerRelease(sampler: *Sampler) void;
-
 pub const Sampler = opaque {
     // Unimplemented as of wgpu-native v29.0.0.0,
     // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
@@ -73,9 +64,9 @@ pub const Sampler = opaque {
     // }
 
     pub inline fn addRef(self: *Sampler) void {
-        wgpuSamplerAddRef(self);
+        raw.call(void, "wgpuSamplerAddRef", .{self});
     }
     pub inline fn release(self: *Sampler) void {
-        wgpuSamplerRelease(self);
+        raw.call(void, "wgpuSamplerRelease", .{self});
     }
 };

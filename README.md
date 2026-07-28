@@ -7,7 +7,9 @@ This package exposes two modules: `wgpu-c` and `wgpu`.
 
 `wgpu-c` is just `wgpu.h` (and by extension `webgpu.h`) run through `translate-c`, so as close to wgpu-native's original C API as is possible in Zig.
 
-`wgpu` is a module full of pure Zig bindings for `libwgpu_native`, it does not import any C code and instead relies on `extern fn` declarations to hook up to `wgpu-native`.
+`wgpu` is a Zig-friendly wrapper over the bindings generated directly from `wgpu.h` and
+`webgpu.h`. The generated declarations are also available through `wgpu.raw`; wrapper
+methods and raw calls therefore share the headers as their single ABI source of truth.
 
 ## Adding this package to your build
 Add the package to your dependencies, either with:
@@ -294,15 +296,12 @@ both link modes and the matching headers.
     }).withDesiredMaxFrameLatency(2);
     ```
 * `WGPUBool` is replaced with `bool` whenever possible.
-  * This pretty much means, it is replaced with `bool` in the parameters and return values of methods, but not in structs or the parameters/return values of procs (which are supposed to be function pointers to things returned by `wgpuGetProcAddress`).
+  * This means it is replaced with `bool` in wrapper method parameters and return values, but not in structs that preserve the C ABI.
 
 ## TODO
 * Cleanup/organization: 
   * If types are only tied to a specific opaque struct, they should be decls inside that struct.
-  * The associated Procs struct should probably be a decl of the opaque struct as well.
   * There are many things that seem to be in the wrong file.
     * For example a lot of what is in `pipeline.zig` is actually only used by `Device`, and should probably be in `device.zig` instead.
   * Since pointers to opaque structs are made explicit, it would be more consistent if pointers to callback functions are explicit as well.
 * Port [wgpu-native-examples](https://github.com/samdauwe/webgpu-native-examples) using wrapper code, as a basic form of documentation.
-* Bindgen using [the webgpu-headers yaml](https://github.com/webgpu-native/webgpu-headers/blob/main/webgpu.yml)?
-* The proc definitions are mainly there since they are also present in the webgpu headers and I didn't fully understand what they were for when I started working on this project. However, I know better now and they aren't really used for anything currently. They're supposed to be used with `wgpuGetProcAddress` but it's [unimplemented in `wgpu-native`](https://github.com/gfx-rs/wgpu-native/issues/223). They are a pain to update by hand, so maybe they should be removed for now and made optional once we have a working bindings generator? Like the bindgen could put them in a separate `wgpu-procs` module.

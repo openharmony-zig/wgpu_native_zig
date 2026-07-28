@@ -1,3 +1,4 @@
+const raw = @import("raw.zig");
 const std = @import("std");
 
 const _chained_struct = @import("chained_struct.zig");
@@ -216,85 +217,23 @@ pub const PopErrorScopeCallbackInfo = extern struct {
     userdata2: ?*anyopaque = null,
 };
 
-pub const DeviceProcs = struct {
-    pub const CreateBindGroup = *const fn (*Device, *const BindGroupDescriptor) callconv(.c) ?*BindGroup;
-    pub const CreateBindGroupLayout = *const fn (*Device, *const BindGroupLayoutDescriptor) callconv(.c) ?*BindGroupLayout;
-    pub const CreateBuffer = *const fn (*Device, *const BufferDescriptor) callconv(.c) ?*Buffer;
-    pub const CreateCommandEncoder = *const fn (*Device, *const CommandEncoderDescriptor) callconv(.c) ?*CommandEncoder;
-    pub const CreateComputePipeline = *const fn (*Device, *const ComputePipelineDescriptor) callconv(.c) ?*ComputePipeline;
-    pub const CreateComputePipelineAsync = *const fn (*Device, *const ComputePipelineDescriptor, CreateComputePipelineAsyncCallbackInfo) callconv(.c) Future;
-    pub const CreatePipelineLayout = *const fn (*Device, *const PipelineLayoutDescriptor) callconv(.c) ?*PipelineLayout;
-    pub const CreateQuerySet = *const fn (*Device, *const QuerySetDescriptor) callconv(.c) ?*QuerySet;
-    pub const CreateRenderBundleEncoder = *const fn (*Device, *const RenderBundleEncoderDescriptor) callconv(.c) ?*RenderBundleEncoder;
-    pub const CreateRenderPipeline = *const fn (*Device, *const RenderPipelineDescriptor) callconv(.c) ?*RenderPipeline;
-    pub const CreateRenderPipelineAsync = *const fn (*Device, *const RenderPipelineDescriptor, CreateRenderPipelineAsyncCallbackInfo) callconv(.c) Future;
-    pub const CreateSampler = *const fn (*Device, *const SamplerDescriptor) callconv(.c) ?*Sampler;
-    pub const CreateShaderModule = *const fn (*Device, *const ShaderModuleDescriptor) callconv(.c) ?*ShaderModule;
-    pub const CreateTexture = *const fn (*Device, *const TextureDescriptor) callconv(.c) ?*Texture;
-    pub const Destroy = *const fn (*Device) callconv(.c) void;
-    pub const GetAdapterInfo = *const fn (*Device) callconv(.c) AdapterInfo;
-    pub const GetFeatures = *const fn (*Device, *SupportedFeatures) callconv(.c) void;
-    pub const GetLimits = *const fn (*Device, *Limits) callconv(.c) Status;
-    pub const GetLostFuture = *const fn (*Device) callconv(.c) Future;
-    pub const GetQueue = *const fn (*Device) callconv(.c) ?*Queue;
-    pub const HasFeature = *const fn (*Device, FeatureName) callconv(.c) WGPUBool;
-    pub const PopErrorScope = *const fn (*Device, PopErrorScopeCallbackInfo) callconv(.c) Future;
-    pub const PushErrorScope = *const fn (*Device, ErrorFilter) callconv(.c) void;
-    pub const SetLabel = *const fn (*Device, StringView) callconv(.c) void;
-    pub const AddRef = *const fn (*Device) callconv(.c) void;
-    pub const Release = *const fn (*Device) callconv(.c) void;
-
-    // wgpu-native procs?
-    // pub const Poll = *const fn(*Device, WGPUBool, ?*const SubmissionIndex) callconv(.c) WGPUBool;
-    // pub const CreateShaderModuleSpirV = *const fn(*Device, *const ShaderModuleDescriptorSpirV) callconv(.c) ?*ShaderModule;
-};
-
-extern fn wgpuDeviceCreateBindGroup(device: *Device, descriptor: *const BindGroupDescriptor) ?*BindGroup;
-extern fn wgpuDeviceCreateBindGroupLayout(device: *Device, descriptor: *const BindGroupLayoutDescriptor) ?*BindGroupLayout;
-extern fn wgpuDeviceCreateBuffer(device: *Device, descriptor: *const BufferDescriptor) ?*Buffer;
-extern fn wgpuDeviceCreateCommandEncoder(device: *Device, descriptor: *const CommandEncoderDescriptor) ?*CommandEncoder;
-extern fn wgpuDeviceCreateComputePipeline(device: *Device, descriptor: *const ComputePipelineDescriptor) ?*ComputePipeline;
-extern fn wgpuDeviceCreateComputePipelineAsync(device: *Device, descriptor: *const ComputePipelineDescriptor, callback_info: CreateComputePipelineAsyncCallbackInfo) Future;
-extern fn wgpuDeviceCreatePipelineLayout(device: *Device, descriptor: *const PipelineLayoutDescriptor) ?*PipelineLayout;
-extern fn wgpuDeviceCreateQuerySet(device: *Device, descriptor: *const QuerySetDescriptor) ?*QuerySet;
-extern fn wgpuDeviceCreateRenderBundleEncoder(device: *Device, descriptor: *const RenderBundleEncoderDescriptor) ?*RenderBundleEncoder;
-extern fn wgpuDeviceCreateRenderPipeline(device: *Device, descriptor: *const RenderPipelineDescriptor) ?*RenderPipeline;
-extern fn wgpuDeviceCreateRenderPipelineAsync(device: *Device, descriptor: *const RenderPipelineDescriptor, callback_info: CreateRenderPipelineAsyncCallbackInfo) Future;
-extern fn wgpuDeviceCreateSampler(device: *Device, descriptor: *const SamplerDescriptor) ?*Sampler;
-extern fn wgpuDeviceCreateShaderModule(device: *Device, descriptor: *const ShaderModuleDescriptor) ?*ShaderModule;
-extern fn wgpuDeviceCreateTexture(device: *Device, descriptor: *const TextureDescriptor) ?*Texture;
-extern fn wgpuDeviceDestroy(device: *Device) void;
-extern fn wgpuDeviceGetAdapterInfo(device: *Device, adapter_info: *AdapterInfo) Status;
-extern fn wgpuDeviceGetFeatures(device: *Device, features: *SupportedFeatures) void;
-extern fn wgpuDeviceGetLimits(device: *Device, limits: *Limits) Status;
-extern fn wgpuDeviceGetLostFuture(device: *Device) Future;
-extern fn wgpuDeviceGetQueue(device: *Device) ?*Queue;
-extern fn wgpuDeviceHasFeature(device: *Device, feature: FeatureName) WGPUBool;
-extern fn wgpuDevicePopErrorScope(device: *Device, callback_info: PopErrorScopeCallbackInfo) Future;
-extern fn wgpuDevicePushErrorScope(device: *Device, filter: ErrorFilter) void;
-extern fn wgpuDeviceSetLabel(device: *Device, label: StringView) void;
-extern fn wgpuDeviceAddRef(device: *Device) void;
-extern fn wgpuDeviceRelease(device: *Device) void;
-
 // wgpu-native
-extern fn wgpuDevicePoll(device: *Device, wait: WGPUBool, submission_index: ?*const SubmissionIndex) WGPUBool;
-extern fn wgpuDeviceCreateShaderModuleSpirV(device: *Device, descriptor: *const ShaderModuleDescriptorSpirV) ?*ShaderModule;
 
 pub const Device = opaque {
     pub inline fn createBindGroup(self: *Device, descriptor: *const BindGroupDescriptor) ?*BindGroup {
-        return wgpuDeviceCreateBindGroup(self, descriptor);
+        return raw.call(?*BindGroup, "wgpuDeviceCreateBindGroup", .{ self, descriptor });
     }
     pub inline fn createBindGroupLayout(self: *Device, descriptor: *const BindGroupLayoutDescriptor) ?*BindGroupLayout {
-        return wgpuDeviceCreateBindGroupLayout(self, descriptor);
+        return raw.call(?*BindGroupLayout, "wgpuDeviceCreateBindGroupLayout", .{ self, descriptor });
     }
     pub inline fn createBuffer(self: *Device, descriptor: *const BufferDescriptor) ?*Buffer {
-        return wgpuDeviceCreateBuffer(self, descriptor);
+        return raw.call(?*Buffer, "wgpuDeviceCreateBuffer", .{ self, descriptor });
     }
     pub inline fn createCommandEncoder(self: *Device, descriptor: *const CommandEncoderDescriptor) ?*CommandEncoder {
-        return wgpuDeviceCreateCommandEncoder(self, descriptor);
+        return raw.call(?*CommandEncoder, "wgpuDeviceCreateCommandEncoder", .{ self, descriptor });
     }
     pub inline fn createComputePipeline(self: *Device, descriptor: *const ComputePipelineDescriptor) ?*ComputePipeline {
-        return wgpuDeviceCreateComputePipeline(self, descriptor);
+        return raw.call(?*ComputePipeline, "wgpuDeviceCreateComputePipeline", .{ self, descriptor });
     }
 
     // Unimplemented as of wgpu-native v29.0.0.0,
@@ -304,16 +243,16 @@ pub const Device = opaque {
     // }
 
     pub inline fn createPipelineLayout(self: *Device, descriptor: *const PipelineLayoutDescriptor) ?*PipelineLayout {
-        return wgpuDeviceCreatePipelineLayout(self, descriptor);
+        return raw.call(?*PipelineLayout, "wgpuDeviceCreatePipelineLayout", .{ self, descriptor });
     }
     pub inline fn createQuerySet(self: *Device, descriptor: *const QuerySetDescriptor) ?*QuerySet {
-        return wgpuDeviceCreateQuerySet(self, descriptor);
+        return raw.call(?*QuerySet, "wgpuDeviceCreateQuerySet", .{ self, descriptor });
     }
     pub inline fn createRenderBundleEncoder(self: *Device, descriptor: *const RenderBundleEncoderDescriptor) ?*RenderBundleEncoder {
-        return wgpuDeviceCreateRenderBundleEncoder(self, descriptor);
+        return raw.call(?*RenderBundleEncoder, "wgpuDeviceCreateRenderBundleEncoder", .{ self, descriptor });
     }
     pub inline fn createRenderPipeline(self: *Device, descriptor: *const RenderPipelineDescriptor) ?*RenderPipeline {
-        return wgpuDeviceCreateRenderPipeline(self, descriptor);
+        return raw.call(?*RenderPipeline, "wgpuDeviceCreateRenderPipeline", .{ self, descriptor });
     }
 
     // Unimplemented as of wgpu-native v29.0.0.0,
@@ -323,16 +262,16 @@ pub const Device = opaque {
     // }
 
     pub inline fn createSampler(self: *Device, descriptor: *const SamplerDescriptor) ?*Sampler {
-        return wgpuDeviceCreateSampler(self, descriptor);
+        return raw.call(?*Sampler, "wgpuDeviceCreateSampler", .{ self, descriptor });
     }
     pub inline fn createShaderModule(self: *Device, descriptor: *const ShaderModuleDescriptor) ?*ShaderModule {
-        return wgpuDeviceCreateShaderModule(self, descriptor);
+        return raw.call(?*ShaderModule, "wgpuDeviceCreateShaderModule", .{ self, descriptor });
     }
     pub inline fn createTexture(self: *Device, descriptor: *const TextureDescriptor) ?*Texture {
-        return wgpuDeviceCreateTexture(self, descriptor);
+        return raw.call(?*Texture, "wgpuDeviceCreateTexture", .{ self, descriptor });
     }
     pub inline fn destroy(self: *Device) void {
-        wgpuDeviceDestroy(self);
+        raw.call(void, "wgpuDeviceDestroy", .{self});
     }
 
     // Unimplemented as of wgpu-native v29.0.0.0,
@@ -342,10 +281,10 @@ pub const Device = opaque {
     // }
 
     pub inline fn getFeatures(self: *Device, features: *SupportedFeatures) void {
-        wgpuDeviceGetFeatures(self, features);
+        raw.call(void, "wgpuDeviceGetFeatures", .{ self, features });
     }
     pub inline fn getLimits(self: *Device, limits: *Limits) Status {
-        return wgpuDeviceGetLimits(self, limits);
+        return raw.call(Status, "wgpuDeviceGetLimits", .{ self, limits });
     }
 
     // Unimplemented as of wgpu-native v29.0.0.0,
@@ -356,17 +295,17 @@ pub const Device = opaque {
     // }
 
     pub inline fn getQueue(self: *Device) ?*Queue {
-        return wgpuDeviceGetQueue(self);
+        return raw.call(?*Queue, "wgpuDeviceGetQueue", .{self});
     }
     pub inline fn hasFeature(self: *Device, feature: FeatureName) WGPUBool {
-        return wgpuDeviceHasFeature(self, feature);
+        return raw.call(WGPUBool, "wgpuDeviceHasFeature", .{ self, feature });
     }
 
     pub inline fn popErrorScope(self: *Device, callback_info: PopErrorScopeCallbackInfo) Future {
-        return wgpuDevicePopErrorScope(self, callback_info);
+        return raw.call(Future, "wgpuDevicePopErrorScope", .{ self, callback_info });
     }
     pub inline fn pushErrorScope(self: *Device, filter: ErrorFilter) void {
-        wgpuDevicePushErrorScope(self, filter);
+        raw.call(void, "wgpuDevicePushErrorScope", .{ self, filter });
     }
 
     // Unimplemented as of wgpu-native v29.0.0.0,
@@ -376,18 +315,18 @@ pub const Device = opaque {
     // }
 
     pub inline fn addRef(self: *Device) void {
-        wgpuDeviceAddRef(self);
+        raw.call(void, "wgpuDeviceAddRef", .{self});
     }
     pub inline fn release(self: *Device) void {
-        wgpuDeviceRelease(self);
+        raw.call(void, "wgpuDeviceRelease", .{self});
     }
 
     // wgpu-native
     pub inline fn poll(self: *Device, wait: bool, submission_index: ?*const SubmissionIndex) bool {
-        return wgpuDevicePoll(self, @intFromBool(wait), submission_index) != 0;
+        return raw.call(WGPUBool, "wgpuDevicePoll", .{ self, @intFromBool(wait), submission_index }) != 0;
     }
     pub inline fn createShaderModuleSpirV(self: *Device, descriptor: *const ShaderModuleDescriptorSpirV) ?*ShaderModule {
-        return wgpuDeviceCreateShaderModuleSpirV(self, descriptor);
+        return raw.call(?*ShaderModule, "wgpuDeviceCreateShaderModuleSpirV", .{ self, descriptor });
     }
 };
 
