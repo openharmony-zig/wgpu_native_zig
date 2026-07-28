@@ -43,7 +43,7 @@ fn convert(comptime To: type, value: anytype) To {
             else => conversionError(To, From),
         },
         .int => switch (@typeInfo(From)) {
-            .@"enum" => @intFromEnum(value),
+            .@"enum" => @intCast(@intFromEnum(value)),
             .int, .comptime_int => @intCast(value),
             else => conversionError(To, From),
         },
@@ -57,4 +57,15 @@ fn conversionError(comptime To: type, comptime From: type) noreturn {
         "cannot convert wgpu header argument from {s} to {s}",
         .{ @typeName(From), @typeName(To) },
     ));
+}
+
+test "convert enum to signed C integer" {
+    const Value = enum(u32) {
+        maximum = std.math.maxInt(c_int),
+    };
+
+    try std.testing.expectEqual(
+        std.math.maxInt(c_int),
+        convert(c_int, Value.maximum),
+    );
 }

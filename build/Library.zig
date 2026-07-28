@@ -57,10 +57,8 @@ pub const Result = struct {
 
     pub fn linkTestModule(
         self: Result,
-        b: *std.Build,
         mod: *std.Build.Module,
     ) void {
-        self.linkModule(b, mod);
         Platform.configureTest(
             self.platform,
             mod,
@@ -138,7 +136,6 @@ pub fn build(b: *std.Build, options: Options) ?Result {
         .wgpu_mod = wgpu_mod,
         .wgpu_c_mod = wgpu_c_mod,
     };
-    result.linkModule(b, wgpu_mod);
     result.linkModule(b, wgpu_c_mod);
     install(b, artifact);
     return result;

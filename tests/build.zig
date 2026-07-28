@@ -79,6 +79,7 @@ fn unitTests(
 ) void {
     const unit_test_step = b.step("test", "Run unit tests");
     const unit_tests = .{
+        .{ .path = "src/raw.zig", .name = "raw-test" },
         .{ .path = "src/misc.zig", .name = "misc-test" },
         .{ .path = "src/async.zig", .name = "async-test" },
         .{ .path = "src/instance.zig", .name = "instance-test" },
@@ -101,7 +102,7 @@ fn unitTests(
         if (std.mem.startsWith(u8, unit_test.path, "tests/")) {
             test_mod.addImport("wgpu", library.wgpu_mod);
         }
-        library.linkTestModule(b, test_mod);
+        library.linkTestModule(test_mod);
         const test_exe = b.addTest(.{
             .name = unit_test.name,
             .root_module = test_mod,
