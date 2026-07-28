@@ -127,14 +127,76 @@ fn validateTypes() void {
         const header_declaration = @field(header, declaration.name);
         if (@TypeOf(header_declaration) != type) continue;
 
-        const wrapper_name = wrapperTypeName(declaration.name);
-        if (!@hasDecl(wrapper, wrapper_name)) {
-            @compileError(std.fmt.comptimePrint(
-                "{s} has no wgpu wrapper type ({s})",
-                .{ declaration.name, wrapper_name },
-            ));
-        }
+        _ = wrapperType(declaration.name);
     }
+}
+
+fn wrapperType(comptime c_name: []const u8) type {
+    if (std.mem.eql(u8, c_name, "WGPUBufferMapState"))
+        return wrapper.Buffer.MapState;
+    if (std.mem.eql(u8, c_name, "WGPUMapMode"))
+        return wrapper.Buffer.MapMode;
+    if (std.mem.eql(u8, c_name, "WGPUMapAsyncStatus"))
+        return wrapper.Buffer.MapAsyncStatus;
+    if (std.mem.eql(u8, c_name, "WGPUBufferMapCallback"))
+        return wrapper.Buffer.MapCallback;
+    if (std.mem.eql(u8, c_name, "WGPUBufferMapCallbackInfo"))
+        return wrapper.Buffer.MapCallbackInfo;
+    if (std.mem.eql(u8, c_name, "WGPURequestAdapterStatus") or
+        std.mem.eql(u8, c_name, "WGPURequestAdapterCallback") or
+        std.mem.eql(u8, c_name, "WGPURequestAdapterCallbackInfo"))
+    {
+        return @field(wrapper.Instance, c_name["WGPU".len..]);
+    }
+    if (std.mem.eql(u8, c_name, "WGPURequestDeviceStatus") or
+        std.mem.eql(u8, c_name, "WGPURequestDeviceCallback") or
+        std.mem.eql(u8, c_name, "WGPURequestDeviceCallbackInfo"))
+    {
+        return @field(wrapper.Adapter, c_name["WGPU".len..]);
+    }
+    if (std.mem.eql(u8, c_name, "WGPUCreatePipelineAsyncStatus") or
+        std.mem.startsWith(u8, c_name, "WGPUCreateComputePipelineAsync") or
+        std.mem.startsWith(u8, c_name, "WGPUCreateRenderPipelineAsync"))
+    {
+        return @field(wrapper.Device, c_name["WGPU".len..]);
+    }
+    if (std.mem.eql(u8, c_name, "WGPUDeviceLostReason") or
+        std.mem.eql(u8, c_name, "WGPUDeviceLostCallback") or
+        std.mem.eql(u8, c_name, "WGPUDeviceLostCallbackInfo") or
+        std.mem.eql(u8, c_name, "WGPUErrorType") or
+        std.mem.eql(u8, c_name, "WGPUErrorFilter") or
+        std.mem.eql(u8, c_name, "WGPUUncapturedErrorCallback") or
+        std.mem.eql(u8, c_name, "WGPUUncapturedErrorCallbackInfo") or
+        std.mem.eql(u8, c_name, "WGPUPopErrorScopeStatus") or
+        std.mem.eql(u8, c_name, "WGPUPopErrorScopeCallback") or
+        std.mem.eql(u8, c_name, "WGPUPopErrorScopeCallbackInfo"))
+    {
+        return @field(wrapper.Device, c_name["WGPU".len..]);
+    }
+    if (std.mem.eql(u8, c_name, "WGPUQueueWorkDoneStatus"))
+        return wrapper.Queue.WorkDoneStatus;
+    if (std.mem.eql(u8, c_name, "WGPUQueueWorkDoneCallback"))
+        return wrapper.Queue.WorkDoneCallback;
+    if (std.mem.eql(u8, c_name, "WGPUQueueWorkDoneCallbackInfo"))
+        return wrapper.Queue.WorkDoneCallbackInfo;
+    if (std.mem.eql(u8, c_name, "WGPUCompilationInfoRequestStatus") or
+        std.mem.eql(u8, c_name, "WGPUCompilationMessageType") or
+        std.mem.eql(u8, c_name, "WGPUCompilationMessage") or
+        std.mem.eql(u8, c_name, "WGPUCompilationInfo") or
+        std.mem.eql(u8, c_name, "WGPUCompilationInfoCallback") or
+        std.mem.eql(u8, c_name, "WGPUCompilationInfoCallbackInfo"))
+    {
+        return @field(wrapper.ShaderModule, c_name["WGPU".len..]);
+    }
+
+    const wrapper_name = wrapperTypeName(c_name);
+    if (!@hasDecl(wrapper, wrapper_name)) {
+        @compileError(std.fmt.comptimePrint(
+            "{s} has no wgpu wrapper type ({s})",
+            .{ c_name, wrapper_name },
+        ));
+    }
+    return @field(wrapper, wrapper_name);
 }
 
 fn wrapperTypeName(comptime c_name: []const u8) []const u8 {
@@ -154,8 +216,6 @@ fn wrapperTypeName(comptime c_name: []const u8) []const u8 {
         return "GetCurrentTextureStatus";
     if (std.mem.eql(u8, c_name, "WGPUNativeTextureFormat"))
         return "TextureFormat";
-    if (std.mem.eql(u8, c_name, "WGPUQueueWorkDoneStatus"))
-        return "WorkDoneStatus";
     if (std.mem.eql(u8, c_name, "WGPURenderPassColorAttachment"))
         return "ColorAttachment";
     if (std.mem.eql(u8, c_name, "WGPURenderPassDepthStencilAttachment"))
@@ -163,8 +223,6 @@ fn wrapperTypeName(comptime c_name: []const u8) []const u8 {
     if (std.mem.eql(u8, c_name, "WGPUStringView")) return "StringView";
     if (std.mem.eql(u8, c_name, "WGPUSurfaceGetCurrentTextureStatus"))
         return "GetCurrentTextureStatus";
-    if (std.mem.eql(u8, c_name, "WGPUTextureSampleType"))
-        return "SampleType";
     if (std.mem.eql(u8, c_name, "WGPUTextureViewDimension"))
         return "ViewDimension";
     return c_name[4..];
@@ -176,13 +234,8 @@ fn validateCallbacks() void {
         if (!std.mem.endsWith(u8, declaration.name, "Callback")) continue;
         if (std.mem.startsWith(u8, declaration.name, "WGPUProc")) continue;
 
-        const wrapper_name = declaration.name[4..];
-        if (!@hasDecl(wrapper, wrapper_name)) {
-            @compileError(declaration.name ++ " has no wrapper callback");
-        }
-
         const HeaderFn = callbackFunctionType(@field(header, declaration.name));
-        const WrapperFn = callbackFunctionType(@field(wrapper, wrapper_name));
+        const WrapperFn = callbackFunctionType(wrapperType(declaration.name));
         const header_info = @typeInfo(HeaderFn).@"fn";
         const wrapper_info = @typeInfo(WrapperFn).@"fn";
 

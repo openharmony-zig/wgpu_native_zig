@@ -43,20 +43,17 @@ const CommandEncoder = _command_encoder.CommandEncoder;
 const _pipeline = @import("pipeline.zig");
 const ComputePipelineDescriptor = _pipeline.ComputePipelineDescriptor;
 const ComputePipeline = _pipeline.ComputePipeline;
-const CreateComputePipelineAsyncCallbackInfo = _pipeline.CreateComputePipelineAsyncCallbackInfo;
 const PipelineLayoutDescriptor = _pipeline.PipelineLayoutDescriptor;
 const PipelineLayout = _pipeline.PipelineLayout;
 const RenderPipelineDescriptor = _pipeline.RenderPipelineDescriptor;
 const RenderPipeline = _pipeline.RenderPipeline;
-const CreateRenderPipelineAsyncCallbackInfo = _pipeline.CreateRenderPipelineAsyncCallbackInfo;
 
 const _query_set = @import("query_set.zig");
 const QuerySetDescriptor = _query_set.QuerySetDescriptor;
 const QuerySet = _query_set.QuerySet;
 
-const _render_bundle = @import("render_bundle.zig");
-const RenderBundleEncoderDescriptor = _render_bundle.RenderBundleEncoderDescriptor;
-const RenderBundleEncoder = _render_bundle.RenderBundleEncoder;
+const RenderBundleEncoderDescriptor = _command_encoder.RenderBundleEncoderDescriptor;
+const RenderBundleEncoder = _command_encoder.RenderBundleEncoder;
 
 const _sampler = @import("sampler.zig");
 const SamplerDescriptor = _sampler.SamplerDescriptor;
@@ -74,69 +71,11 @@ const Texture = _texture.Texture;
 /// Borrowed backend-native `id<MTLDevice>` returned by wgpu-native.
 pub const NativeMetalDevice = opaque {};
 
-pub const DeviceLostReason = enum(u32) {
-    unknown = 0x00000001,
-    destroyed = 0x00000002,
-    callback_cancelled = 0x00000003,
-    failed_creation = 0x00000004,
-};
-
-pub const DeviceLostCallbackInfo = extern struct {
-    next_in_chain: ?*ChainedStruct = null,
-
-    // Apparently in the webgpu header this has no (valid) default: https://github.com/webgpu-native/webgpu-headers/pull/471
-    // As of wgpu-native v29.0.0.0, Instance.waitAny() has not been implemented, but Instance.processEvents() has,
-    // so the safest mode to use currently is probably CallbackMode.allow_process_events.
-    // If you really know what you're doing, CallbackMode.allow_spontaneous could also work as an option here.
-    // TODO: Revisit this if/when Instance.waitAny() is implemented in wgpu-native
-    mode: CallbackMode = CallbackMode.allow_process_events,
-    callback: DeviceLostCallback = defaultDeviceLostCallback,
-    userdata1: ?*anyopaque = null,
-    userdata2: ?*anyopaque = null,
-};
-
-// `device` is a reference to the device which was lost. If, and only if, the `reason` is DeviceLostReason.failed_creation, `device` is a non-null pointer to a null Device.
-pub const DeviceLostCallback = *const fn (device: *const ?*Device, reason: DeviceLostReason, message: StringView, userdata1: ?*anyopaque, userdata2: ?*anyopaque) callconv(.c) void;
-pub fn defaultDeviceLostCallback(device: *const ?*Device, reason: DeviceLostReason, message: StringView, userdata1: ?*anyopaque, userdata2: ?*anyopaque) callconv(.c) void {
-    _ = device;
-    _ = userdata1;
-    _ = userdata2;
-
-    // Without a device you can't really do much of anything, so do a panic here by default.
-    // For better error handling, implement DeviceLostCallback with your own error handling logic.
-    // Remember you can pass pointers in through the userdata fields of the DeviceLostCallbackInfo struct;
-    // you could pass in a simple pointer to a bool or something more complex like a struct.
-    std.debug.panic("Device lost: reason={s} message=\"{s}\"\n", .{ @tagName(reason), message.toSlice() orelse "" });
-}
-
 pub const DeviceExtras = extern struct {
     chain: ChainedStruct = ChainedStruct{
         .s_type = SType.device_extras,
     },
     trace_path: StringView,
-};
-
-pub const ErrorType = enum(u32) {
-    no_error = 0x00000001,
-    validation = 0x00000002,
-    out_of_memory = 0x00000003,
-    internal = 0x00000004,
-    unknown = 0x00000005,
-};
-
-pub const UncapturedErrorCallback = *const fn (device: ?*Device, error_type: ErrorType, message: StringView, userdata1: ?*anyopaque, userdata2: ?*anyopaque) callconv(.c) void;
-
-pub const ErrorFilter = enum(u32) {
-    validation = 0x00000001,
-    out_of_memory = 0x00000002,
-    internal = 0x00000003,
-};
-
-pub const UncapturedErrorCallbackInfo = extern struct {
-    next_in_chain: ?*const ChainedStruct = null,
-    callback: ?UncapturedErrorCallback = null,
-    userdata1: ?*anyopaque = null,
-    userdata2: ?*anyopaque = null,
 };
 
 pub const DeviceDescriptor = extern struct {
@@ -146,8 +85,8 @@ pub const DeviceDescriptor = extern struct {
     required_features: [*]const FeatureName = &[0]FeatureName{},
     required_limits: ?*const Limits,
     default_queue: QueueDescriptor = QueueDescriptor{},
-    device_lost_callback_info: DeviceLostCallbackInfo = DeviceLostCallbackInfo{},
-    uncaptured_error_callback_info: UncapturedErrorCallbackInfo = UncapturedErrorCallbackInfo{},
+    device_lost_callback_info: Device.DeviceLostCallbackInfo = .{},
+    uncaptured_error_callback_info: Device.UncapturedErrorCallbackInfo = .{},
 
     pub inline fn withTracePath(self: DeviceDescriptor, trace_path: []const u8) DeviceDescriptor {
         var dd = self;
@@ -158,71 +97,151 @@ pub const DeviceDescriptor = extern struct {
     }
 };
 
-pub const RequestDeviceStatus = enum(u32) {
-    success = 0x00000001,
-    callback_cancelled = 0x00000002,
-    @"error" = 0x00000003,
-};
-
-// TODO: This probably belongs in adapter.zig
-pub const RequestDeviceCallback = *const fn (status: RequestDeviceStatus, device: ?*Device, message: StringView, userdata1: ?*anyopaque, userdata2: ?*anyopaque) callconv(.c) void;
-
-pub const RequestDeviceResponse = struct {
-    status: RequestDeviceStatus,
-    message: ?[]const u8,
-    device: ?*Device,
-};
-
-pub const RequestDeviceCallbackInfo = extern struct {
-    next_in_chain: ?*ChainedStruct = null,
-
-    // TODO: Revisit this default if/when Instance.waitAny() is implemented.
-    mode: CallbackMode = CallbackMode.allow_process_events,
-
-    callback: RequestDeviceCallback,
-    userdata1: ?*anyopaque = null,
-    userdata2: ?*anyopaque = null,
-};
-
-pub const PopErrorScopeStatus = enum(u32) {
-    success = 0x00000001, // The error scope stack was successfully popped and a result was reported.
-    callback_cancelled = 0x00000002,
-    @"error" = 0x00000003, // The error scope stack could not be popped, because it was empty.
-};
-
-// status
-// See PopErrorScopeStatus.
-//
-// error_type
-// The type of the error caught by the scope, or ErrorType.no_error if there was none.
-// If the `status` is not PopErrorScopeStatus.success, this is ErrorType.no_error.
-//
-// message
-// If the `type` is not ErrorType.no_error, this is a non-empty string;
-// otherwise, this is an empty string.
-//
-pub const PopErrorScopeCallback = *const fn (
-    status: PopErrorScopeStatus,
-    error_type: ErrorType,
-    message: StringView,
-    userdata1: ?*anyopaque,
-    userdata2: ?*anyopaque,
-) callconv(.c) void;
-
-pub const PopErrorScopeCallbackInfo = extern struct {
-    next_in_chain: ?*ChainedStruct = null,
-
-    // TODO: Revisit this default if/when Instance.waitAny() is implemented.
-    mode: CallbackMode = CallbackMode.allow_process_events,
-
-    callback: PopErrorScopeCallback,
-    userdata1: ?*anyopaque = null,
-    userdata2: ?*anyopaque = null,
-};
-
 // wgpu-native
 
 pub const Device = opaque {
+    pub const DeviceLostReason = enum(u32) {
+        unknown = 0x00000001,
+        destroyed = 0x00000002,
+        callback_cancelled = 0x00000003,
+        failed_creation = 0x00000004,
+    };
+
+    // `device` is a reference to the device which was lost. If, and only if,
+    // `reason` is `failed_creation`, it points to a null Device handle.
+    pub const DeviceLostCallback = *const fn (
+        device: *const ?*Device,
+        reason: DeviceLostReason,
+        message: StringView,
+        userdata1: ?*anyopaque,
+        userdata2: ?*anyopaque,
+    ) callconv(.c) void;
+
+    pub const DeviceLostCallbackInfo = extern struct {
+        next_in_chain: ?*ChainedStruct = null,
+
+        // TODO: Revisit this default if/when Instance.waitAny() is implemented.
+        mode: CallbackMode = .allow_process_events,
+        callback: DeviceLostCallback = defaultDeviceLostCallback,
+        userdata1: ?*anyopaque = null,
+        userdata2: ?*anyopaque = null,
+    };
+
+    pub fn defaultDeviceLostCallback(
+        device: *const ?*Device,
+        reason: DeviceLostReason,
+        message: StringView,
+        userdata1: ?*anyopaque,
+        userdata2: ?*anyopaque,
+    ) callconv(.c) void {
+        _ = device;
+        _ = userdata1;
+        _ = userdata2;
+        std.debug.panic(
+            "Device lost: reason={s} message=\"{s}\"\n",
+            .{ @tagName(reason), message.toSlice() orelse "" },
+        );
+    }
+
+    pub const ErrorType = enum(u32) {
+        no_error = 0x00000001,
+        validation = 0x00000002,
+        out_of_memory = 0x00000003,
+        internal = 0x00000004,
+        unknown = 0x00000005,
+    };
+
+    pub const UncapturedErrorCallback = *const fn (
+        device: ?*Device,
+        error_type: ErrorType,
+        message: StringView,
+        userdata1: ?*anyopaque,
+        userdata2: ?*anyopaque,
+    ) callconv(.c) void;
+
+    pub const ErrorFilter = enum(u32) {
+        validation = 0x00000001,
+        out_of_memory = 0x00000002,
+        internal = 0x00000003,
+    };
+
+    pub const UncapturedErrorCallbackInfo = extern struct {
+        next_in_chain: ?*const ChainedStruct = null,
+        callback: ?UncapturedErrorCallback = null,
+        userdata1: ?*anyopaque = null,
+        userdata2: ?*anyopaque = null,
+    };
+
+    pub const PopErrorScopeStatus = enum(u32) {
+        success = 0x00000001,
+        callback_cancelled = 0x00000002,
+        @"error" = 0x00000003,
+    };
+
+    pub const PopErrorScopeCallback = *const fn (
+        status: PopErrorScopeStatus,
+        error_type: ErrorType,
+        message: StringView,
+        userdata1: ?*anyopaque,
+        userdata2: ?*anyopaque,
+    ) callconv(.c) void;
+
+    pub const PopErrorScopeCallbackInfo = extern struct {
+        next_in_chain: ?*ChainedStruct = null,
+
+        // TODO: Revisit this default if/when Instance.waitAny() is implemented.
+        mode: CallbackMode = .allow_process_events,
+
+        callback: PopErrorScopeCallback,
+        userdata1: ?*anyopaque = null,
+        userdata2: ?*anyopaque = null,
+    };
+
+    pub const CreatePipelineAsyncStatus = enum(u32) {
+        success = 0x00000001,
+        callback_cancelled = 0x00000002,
+        validation_error = 0x00000003,
+        internal_error = 0x00000004,
+    };
+
+    pub const CreateComputePipelineAsyncCallback = *const fn (
+        status: CreatePipelineAsyncStatus,
+        pipeline: ?*ComputePipeline,
+        message: StringView,
+        userdata1: ?*anyopaque,
+        userdata2: ?*anyopaque,
+    ) callconv(.c) void;
+
+    pub const CreateComputePipelineAsyncCallbackInfo = extern struct {
+        next_in_chain: ?*ChainedStruct = null,
+
+        // TODO: Revisit this default if/when Instance.waitAny() is implemented.
+        mode: CallbackMode = .allow_process_events,
+
+        callback: CreateComputePipelineAsyncCallback,
+        userdata1: ?*anyopaque = null,
+        userdata2: ?*anyopaque = null,
+    };
+
+    pub const CreateRenderPipelineAsyncCallback = *const fn (
+        status: CreatePipelineAsyncStatus,
+        pipeline: ?*RenderPipeline,
+        message: StringView,
+        userdata1: ?*anyopaque,
+        userdata2: ?*anyopaque,
+    ) callconv(.c) void;
+
+    pub const CreateRenderPipelineAsyncCallbackInfo = extern struct {
+        next_in_chain: ?*ChainedStruct = null,
+
+        // TODO: Revisit this default if/when Instance.waitAny() is implemented.
+        mode: CallbackMode = .allow_process_events,
+
+        callback: CreateRenderPipelineAsyncCallback,
+        userdata1: ?*anyopaque = null,
+        userdata2: ?*anyopaque = null,
+    };
+
     pub inline fn createBindGroup(self: *Device, descriptor: *const BindGroupDescriptor) ?*BindGroup {
         return raw.call(?*BindGroup, "wgpuDeviceCreateBindGroup", .{ self, descriptor });
     }

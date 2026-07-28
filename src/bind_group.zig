@@ -18,7 +18,7 @@ const TextureView = _texture.TextureView;
 const TextureBindingLayout = _texture.TextureBindingLayout;
 const StorageTextureBindingLayout = _texture.StorageTextureBindingLayout;
 const StorageTextureAccess = _texture.StorageTextureAccess;
-const SampleType = _texture.SampleType;
+const TextureSampleType = _texture.TextureSampleType;
 
 const ShaderStage = @import("shader.zig").ShaderStage;
 
@@ -65,7 +65,7 @@ pub const BindGroupLayoutEntry = extern struct {
         .type = SamplerBindingType.binding_not_used,
     },
     texture: TextureBindingLayout = TextureBindingLayout{
-        .sample_type = SampleType.binding_not_used,
+        .sample_type = TextureSampleType.binding_not_used,
     },
     storage_texture: StorageTextureBindingLayout = StorageTextureBindingLayout{
         .access = StorageTextureAccess.binding_not_used,

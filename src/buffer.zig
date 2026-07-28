@@ -43,39 +43,6 @@ pub const BufferUsages = struct {
     pub const query_resolve = @as(BufferUsage, 0x0000000000000200);
 };
 
-pub const BufferMapState = enum(u32) {
-    unmapped = 0x00000001,
-    pending = 0x00000002,
-    mapped = 0x00000003,
-};
-
-pub const MapMode = WGPUFlags;
-pub const MapModes = struct {
-    pub const none = @as(MapMode, 0x0000000000000000);
-    pub const read = @as(MapMode, 0x0000000000000001);
-    pub const write = @as(MapMode, 0x0000000000000002);
-};
-
-pub const MapAsyncStatus = enum(u32) {
-    success = 0x00000001,
-    callback_cancelled = 0x00000002,
-    @"error" = 0x00000003,
-    aborted = 0x00000004,
-};
-
-pub const BufferMapCallbackInfo = extern struct {
-    next_in_chain: ?*ChainedStruct = null,
-
-    // TODO: Revisit this default if/when Instance.waitAny() is implemented.
-    mode: CallbackMode = CallbackMode.allow_process_events,
-
-    callback: BufferMapCallback,
-    userdata1: ?*anyopaque = null,
-    userdata2: ?*anyopaque = null,
-};
-
-pub const BufferMapCallback = *const fn (status: MapAsyncStatus, message: StringView, userdata1: ?*anyopaque, userdata2: ?*anyopaque) callconv(.c) void;
-
 pub const BufferDescriptor = extern struct {
     next_in_chain: ?*const ChainedStruct = null,
     label: StringView = StringView{},
@@ -85,6 +52,44 @@ pub const BufferDescriptor = extern struct {
 };
 
 pub const Buffer = opaque {
+    pub const MapState = enum(u32) {
+        unmapped = 0x00000001,
+        pending = 0x00000002,
+        mapped = 0x00000003,
+    };
+
+    pub const MapMode = WGPUFlags;
+    pub const MapModes = struct {
+        pub const none = @as(MapMode, 0x0000000000000000);
+        pub const read = @as(MapMode, 0x0000000000000001);
+        pub const write = @as(MapMode, 0x0000000000000002);
+    };
+
+    pub const MapAsyncStatus = enum(u32) {
+        success = 0x00000001,
+        callback_cancelled = 0x00000002,
+        @"error" = 0x00000003,
+        aborted = 0x00000004,
+    };
+
+    pub const MapCallback = *const fn (
+        status: MapAsyncStatus,
+        message: StringView,
+        userdata1: ?*anyopaque,
+        userdata2: ?*anyopaque,
+    ) callconv(.c) void;
+
+    pub const MapCallbackInfo = extern struct {
+        next_in_chain: ?*ChainedStruct = null,
+
+        // TODO: Revisit this default if/when Instance.waitAny() is implemented.
+        mode: CallbackMode = .allow_process_events,
+
+        callback: MapCallback,
+        userdata1: ?*anyopaque = null,
+        userdata2: ?*anyopaque = null,
+    };
+
     pub inline fn destroy(self: *Buffer) void {
         raw.call(void, "wgpuBufferDestroy", .{self});
     }
@@ -110,7 +115,7 @@ pub const Buffer = opaque {
 
     // Unimplemented as of wgpu-native v29.0.0.0,
     // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
-    // pub inline fn getMapState(self: *Buffer) BufferMapState {
+    // pub inline fn getMapState(self: *Buffer) MapState {
     //     return wgpuBufferGetMapState(self);
     // }
 
@@ -138,7 +143,7 @@ pub const Buffer = opaque {
         return raw.call(BufferUsage, "wgpuBufferGetUsage", .{self});
     }
 
-    pub inline fn mapAsync(self: *Buffer, mode: MapMode, offset: usize, size: usize, callback_info: BufferMapCallbackInfo) Future {
+    pub inline fn mapAsync(self: *Buffer, mode: MapMode, offset: usize, size: usize, callback_info: MapCallbackInfo) Future {
         return raw.call(Future, "wgpuBufferMapAsync", .{ self, mode, offset, size, callback_info });
     }
 

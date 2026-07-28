@@ -10,7 +10,7 @@ const output_extent = wgpu.Extent3D{
 const output_bytes_per_row = 4 * output_extent.width;
 const output_size = output_bytes_per_row * output_extent.height;
 
-fn handleBufferMap(status: wgpu.MapAsyncStatus, _: wgpu.StringView, userdata1: ?*anyopaque, _: ?*anyopaque) callconv(.c) void {
+fn handleBufferMap(status: wgpu.Buffer.MapAsyncStatus, _: wgpu.StringView, userdata1: ?*anyopaque, _: ?*anyopaque) callconv(.c) void {
     std.log.info("buffer_map status={x:.8}\n", .{@intFromEnum(status)});
     const complete: *bool = @ptrCast(@alignCast(userdata1));
     complete.* = true;
@@ -153,7 +153,7 @@ pub fn main(init: std.process.Init) !void {
         queue.submit(&[_]*const wgpu.CommandBuffer{command_buffer});
 
         var buffer_map_complete = false;
-        _ = staging_buffer.mapAsync(wgpu.MapModes.read, 0, output_size, wgpu.BufferMapCallbackInfo{
+        _ = staging_buffer.mapAsync(wgpu.Buffer.MapModes.read, 0, output_size, wgpu.Buffer.MapCallbackInfo{
             .callback = handleBufferMap,
             .userdata1 = @ptrCast(&buffer_map_complete),
         });

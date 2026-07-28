@@ -139,9 +139,6 @@ pub const TextureUsages = struct {
     pub const transient_attachment = @as(TextureUsage, 0x0000000000000020);
 };
 
-// TODO: Like a lot of things in this file, this breaks from the wrapper code convention by having an unneeded prefix ("Texture")
-//       in front of the name, even though "Aspect" is exclusively used in TextureAspect. I've done this because just calling
-//       it "Aspect" seems like it'd confuse people thinking it is an aspect ratio or something, but should it just be "Aspect"?
 pub const TextureAspect = enum(u32) {
     undefined = 0x00000000, // Indicates no value is passed for this argument.
     all = 0x00000001,
@@ -201,8 +198,7 @@ pub const TextureView = opaque {
     }
 };
 
-// TODO: Should this maybe go in sampler.zig instead?
-pub const SampleType = enum(u32) {
+pub const TextureSampleType = enum(u32) {
     // Indicates that this TextureBindingLayout member of its parent BindGroupLayoutEntry is not used.
     binding_not_used = 0x00000000,
 
@@ -235,7 +231,7 @@ pub const TextureBindingViewDimension = extern struct {
 
 pub const TextureBindingLayout = extern struct {
     next_in_chain: ?*const ChainedStruct = null,
-    sample_type: SampleType = SampleType.undefined,
+    sample_type: TextureSampleType = .undefined,
     view_dimension: ViewDimension = ViewDimension.@"2d",
     multisampled: WGPUBool = @intFromBool(false),
 };

@@ -16,9 +16,6 @@ const WGPUFlags = _misc.WGPUFlags;
 const StringView = _misc.StringView;
 const OptionalBool = _misc.OptionalBool;
 
-const _async = @import("async.zig");
-const CallbackMode = _async.CallbackMode;
-
 const TextureFormat = @import("texture.zig").TextureFormat;
 
 pub const PipelineLayoutExtras = extern struct {
@@ -80,33 +77,6 @@ pub const ComputePipelineDescriptor = extern struct {
     layout: ?*PipelineLayout = null,
     compute: ComputeState,
 };
-
-pub const CreatePipelineAsyncStatus = enum(u32) {
-    success = 0x00000001,
-    callback_cancelled = 0x00000002,
-    validation_error = 0x00000003,
-    internal_error = 0x00000004,
-};
-
-pub const CreateComputePipelineAsyncCallbackInfo = extern struct {
-    next_in_chain: ?*ChainedStruct = null,
-
-    // TODO: Revisit this default if/when Instance.waitAny() is implemented.
-    mode: CallbackMode = CallbackMode.allow_process_events,
-
-    callback: CreateComputePipelineAsyncCallback,
-    userdata1: ?*anyopaque = null,
-    userdata2: ?*anyopaque = null,
-};
-
-// TODO: This should probably be in device.zig, as well as its RenderPipeline counterpart
-pub const CreateComputePipelineAsyncCallback = *const fn (
-    status: CreatePipelineAsyncStatus,
-    pipeline: ?*ComputePipeline,
-    message: StringView,
-    userdata1: ?*anyopaque,
-    userdata2: ?*anyopaque,
-) callconv(.c) void;
 
 pub const ComputePipeline = opaque {
     pub inline fn getBindGroupLayout(self: *ComputePipeline, group_index: u32) ?*BindGroupLayout {
@@ -424,22 +394,3 @@ pub const RenderPipeline = opaque {
         raw.call(void, "wgpuRenderPipelineRelease", .{self});
     }
 };
-
-pub const CreateRenderPipelineAsyncCallbackInfo = extern struct {
-    next_in_chain: ?*ChainedStruct = null,
-
-    // TODO: Revisit this default if/when Instance.waitAny() is implemented.
-    mode: CallbackMode = CallbackMode.allow_process_events,
-
-    callback: CreateRenderPipelineAsyncCallback,
-    userdata1: ?*anyopaque = null,
-    userdata2: ?*anyopaque = null,
-};
-
-pub const CreateRenderPipelineAsyncCallback = *const fn (
-    status: CreatePipelineAsyncStatus,
-    pipeline: ?*RenderPipeline,
-    message: StringView,
-    userdata1: ?*anyopaque,
-    userdata2: ?*anyopaque,
-) callconv(.c) void;

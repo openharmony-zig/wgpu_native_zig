@@ -8,10 +8,6 @@ const SType = _chained_struct.SType;
 const _adapter = @import("adapter.zig");
 const Adapter = _adapter.Adapter;
 const RequestAdapterOptions = _adapter.RequestAdapterOptions;
-const RequestAdapterCallbackInfo = _adapter.RequestAdapterCallbackInfo;
-const RequestAdapterCallback = _adapter.RequestAdapterCallback;
-const RequestAdapterStatus = _adapter.RequestAdapterStatus;
-const RequestAdapterResponse = _adapter.RequestAdapterResponse;
 const BackendType = _adapter.BackendType;
 
 const _surface = @import("surface.zig");
@@ -24,6 +20,7 @@ const StringView = _misc.StringView;
 const Status = _misc.Status;
 
 const _async = @import("async.zig");
+const CallbackMode = _async.CallbackMode;
 const Future = _async.Future;
 const WaitStatus = _async.WaitStatus;
 const FutureWaitInfo = _async.FutureWaitInfo;
@@ -227,6 +224,38 @@ pub const EnumerateAdapterOptions = extern struct {
 // wgpu-native
 
 pub const Instance = opaque {
+    pub const RequestAdapterStatus = enum(u32) {
+        success = 0x00000001,
+        callback_cancelled = 0x00000002,
+        unavailable = 0x00000003,
+        @"error" = 0x00000004,
+    };
+
+    pub const RequestAdapterCallback = *const fn (
+        status: RequestAdapterStatus,
+        adapter: ?*Adapter,
+        message: StringView,
+        userdata1: ?*anyopaque,
+        userdata2: ?*anyopaque,
+    ) callconv(.c) void;
+
+    pub const RequestAdapterCallbackInfo = extern struct {
+        next_in_chain: ?*ChainedStruct = null,
+
+        // TODO: Revisit this default if/when Instance.waitAny() is implemented.
+        mode: CallbackMode = .allow_process_events,
+
+        callback: RequestAdapterCallback,
+        userdata1: ?*anyopaque = null,
+        userdata2: ?*anyopaque = null,
+    };
+
+    pub const RequestAdapterResponse = struct {
+        status: RequestAdapterStatus,
+        message: ?[]const u8,
+        adapter: ?*Adapter,
+    };
+
     // This is a global function, but it creates an instance so I put it here.
     pub inline fn create(descriptor: ?*const InstanceDescriptor) ?*Instance {
         return raw.call(?*Instance, "wgpuCreateInstance", .{descriptor});

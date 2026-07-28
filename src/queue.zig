@@ -21,29 +21,34 @@ pub const QueueDescriptor = extern struct {
     label: StringView = StringView{},
 };
 
-pub const WorkDoneStatus = enum(u32) {
-    success = 0x00000001,
-    callback_cancelled = 0x00000002,
-    @"error" = 0x00000003,
-};
-
-pub const QueueWorkDoneCallbackInfo = extern struct {
-    next_in_chain: ?*ChainedStruct = null,
-
-    // TODO: Revisit this default if/when Instance.waitAny() is implemented.
-    mode: CallbackMode = CallbackMode.allow_process_events,
-
-    callback: QueueWorkDoneCallback,
-    userdata1: ?*anyopaque = null,
-    userdata2: ?*anyopaque = null,
-};
-
-pub const QueueWorkDoneCallback = *const fn (status: WorkDoneStatus, message: StringView, userdata1: ?*anyopaque, userdata2: ?*anyopaque) callconv(.c) void;
-
 // wgpu-native
 
 pub const Queue = opaque {
-    pub inline fn onSubmittedWorkDone(self: *Queue, callback_info: QueueWorkDoneCallbackInfo) Future {
+    pub const WorkDoneStatus = enum(u32) {
+        success = 0x00000001,
+        callback_cancelled = 0x00000002,
+        @"error" = 0x00000003,
+    };
+
+    pub const WorkDoneCallback = *const fn (
+        status: WorkDoneStatus,
+        message: StringView,
+        userdata1: ?*anyopaque,
+        userdata2: ?*anyopaque,
+    ) callconv(.c) void;
+
+    pub const WorkDoneCallbackInfo = extern struct {
+        next_in_chain: ?*ChainedStruct = null,
+
+        // TODO: Revisit this default if/when Instance.waitAny() is implemented.
+        mode: CallbackMode = .allow_process_events,
+
+        callback: WorkDoneCallback,
+        userdata1: ?*anyopaque = null,
+        userdata2: ?*anyopaque = null,
+    };
+
+    pub inline fn onSubmittedWorkDone(self: *Queue, callback_info: WorkDoneCallbackInfo) Future {
         return raw.call(Future, "wgpuQueueOnSubmittedWorkDone", .{ self, callback_info });
     }
 

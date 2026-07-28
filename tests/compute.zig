@@ -3,7 +3,7 @@ const testing = std.testing;
 
 const wgpu = @import("wgpu");
 
-fn handleBufferMap(status: wgpu.MapAsyncStatus, _: wgpu.StringView, userdata1: ?*anyopaque, _: ?*anyopaque) callconv(.c) void {
+fn handleBufferMap(status: wgpu.Buffer.MapAsyncStatus, _: wgpu.StringView, userdata1: ?*anyopaque, _: ?*anyopaque) callconv(.c) void {
     std.log.info("buffer_map status={x:.8}\n", .{@intFromEnum(status)});
     const completed: *bool = @ptrCast(@alignCast(userdata1));
     completed.* = true;
@@ -110,7 +110,7 @@ fn compute_collatz() ![4]u32 {
     queue.submit(&[_]*const wgpu.CommandBuffer{command_buffer});
 
     var buffer_map_complete = false;
-    _ = staging_buffer.mapAsync(wgpu.MapModes.read, 0, numbers_size, wgpu.BufferMapCallbackInfo{
+    _ = staging_buffer.mapAsync(wgpu.Buffer.MapModes.read, 0, numbers_size, wgpu.Buffer.MapCallbackInfo{
         .callback = handleBufferMap,
         .userdata1 = @ptrCast(&buffer_map_complete),
     });

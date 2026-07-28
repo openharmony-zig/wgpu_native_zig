@@ -21,10 +21,6 @@ const Instance = @import("instance.zig").Instance;
 const _device = @import("device.zig");
 const Device = _device.Device;
 const DeviceDescriptor = _device.DeviceDescriptor;
-const RequestDeviceCallback = _device.RequestDeviceCallback;
-const RequestDeviceCallbackInfo = _device.RequestDeviceCallbackInfo;
-const RequestDeviceStatus = _device.RequestDeviceStatus;
-const RequestDeviceResponse = _device.RequestDeviceResponse;
 
 const _async = @import("async.zig");
 const CallbackMode = _async.CallbackMode;
@@ -93,39 +89,6 @@ pub const RequestAdapterWebXROptions = extern struct {
     xr_compatible: WGPUBool = @intFromBool(false),
 };
 
-pub const RequestAdapterStatus = enum(u32) {
-    success = 0x00000001,
-    callback_cancelled = 0x00000002,
-    unavailable = 0x00000003,
-    @"error" = 0x00000004,
-};
-
-pub const RequestAdapterCallbackInfo = extern struct {
-    next_in_chain: ?*ChainedStruct = null,
-
-    // TODO: Revisit this default if/when Instance.waitAny() is implemented.
-    mode: CallbackMode = CallbackMode.allow_process_events,
-
-    callback: RequestAdapterCallback,
-    userdata1: ?*anyopaque = null,
-    userdata2: ?*anyopaque = null,
-};
-
-// TODO: This should maybe be relocated to instance.zig; it is only used there.
-pub const RequestAdapterCallback = *const fn (
-    status: RequestAdapterStatus,
-    adapter: ?*Adapter,
-    message: StringView,
-    userdata1: ?*anyopaque,
-    userdata2: ?*anyopaque,
-) callconv(.c) void;
-
-pub const RequestAdapterResponse = struct {
-    status: RequestAdapterStatus,
-    message: ?[]const u8,
-    adapter: ?*Adapter,
-};
-
 pub const AdapterInfo = extern struct {
     next_in_chain: ?*ChainedStructOut = null,
     vendor: StringView,
@@ -145,6 +108,37 @@ pub const AdapterInfo = extern struct {
 };
 
 pub const Adapter = opaque {
+    pub const RequestDeviceStatus = enum(u32) {
+        success = 0x00000001,
+        callback_cancelled = 0x00000002,
+        @"error" = 0x00000003,
+    };
+
+    pub const RequestDeviceCallback = *const fn (
+        status: RequestDeviceStatus,
+        device: ?*Device,
+        message: StringView,
+        userdata1: ?*anyopaque,
+        userdata2: ?*anyopaque,
+    ) callconv(.c) void;
+
+    pub const RequestDeviceCallbackInfo = extern struct {
+        next_in_chain: ?*ChainedStruct = null,
+
+        // TODO: Revisit this default if/when Instance.waitAny() is implemented.
+        mode: CallbackMode = .allow_process_events,
+
+        callback: RequestDeviceCallback,
+        userdata1: ?*anyopaque = null,
+        userdata2: ?*anyopaque = null,
+    };
+
+    pub const RequestDeviceResponse = struct {
+        status: RequestDeviceStatus,
+        message: ?[]const u8,
+        device: ?*Device,
+    };
+
     pub inline fn getFeatures(self: *Adapter, features: *SupportedFeatures) void {
         raw.call(void, "wgpuAdapterGetFeatures", .{ self, features });
     }

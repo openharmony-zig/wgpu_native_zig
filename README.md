@@ -259,7 +259,7 @@ link modes and the matching headers.
   - For example, requesting an adapter with a callback looks something like
     ```zig
     fn handleRequestAdapter(
-        status: RequestAdapterStatus,
+        status: Instance.RequestAdapterStatus,
         adapter: ?*Adapter,
         message: StringView,
         userdata1: ?*anyopaque,
@@ -279,7 +279,7 @@ link modes and the matching headers.
     }
     var adapter_ptr: ?*Adapter = null;
     var completed = false;
-    const request_adapter_info = RequestAdapterCallbackInfo {
+    const request_adapter_info = Instance.RequestAdapterCallbackInfo {
         .callback = handleRequestAdapter,
         .userdata1 = @ptrCast(&adapter_ptr),
         .userdata2 = @ptrCast(&completed),
@@ -342,12 +342,14 @@ link modes and the matching headers.
     ```
 - `WGPUBool` is replaced with `bool` whenever possible.
   - This means it is replaced with `bool` in wrapper method parameters and return values, but not in structs that preserve the C ABI.
+- Callback types that belong to one handle are scoped under that handle. For example,
+  use `Instance.RequestAdapterCallbackInfo`, `Adapter.RequestDeviceCallbackInfo`,
+  `Buffer.MapCallbackInfo`, and `Device.PopErrorScopeCallbackInfo`.
+- Wrapper names retain meaningful WebGPU prefixes. For example,
+  `WGPUTextureSampleType` is exposed as `TextureSampleType`.
 
 ## TODO
 
-- Cleanup/organization:
-  - If types are only tied to a specific opaque struct, they should be decls inside that struct.
-  - There are many things that seem to be in the wrong file.
-    - For example a lot of what is in `pipeline.zig` is actually only used by `Device`, and should probably be in `device.zig` instead.
-  - Since pointers to opaque structs are made explicit, it would be more consistent if pointers to callback functions are explicit as well.
+- Expand headless coverage for Device creation, feature/limit queries, error scopes,
+  textures, samplers, query sets, and render bundles.
 - Port [wgpu-native-examples](https://github.com/samdauwe/webgpu-native-examples) using wrapper code, as a basic form of documentation.
