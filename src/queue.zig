@@ -3,9 +3,11 @@ const ChainedStruct = @import("chained_struct.zig").ChainedStruct;
 const CommandBuffer = @import("command_encoder.zig").CommandBuffer;
 const Buffer = @import("buffer.zig").Buffer;
 
+const _copy = @import("copy.zig");
+const TexelCopyTextureInfo = _copy.TexelCopyTextureInfo;
+const TexelCopyBufferLayout = _copy.TexelCopyBufferLayout;
+
 const _texture = @import("texture.zig");
-const TexelCopyTextureInfo = _texture.TexelCopyTextureInfo;
-const TexelCopyBufferLayout = _texture.TexelCopyBufferLayout;
 const Extent3D = _texture.Extent3D;
 
 const _async = @import("async.zig");

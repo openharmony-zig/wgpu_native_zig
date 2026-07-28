@@ -8,11 +8,13 @@ const SType = _chained_struct.SType;
 const Buffer = @import("buffer.zig").Buffer;
 const QuerySet = @import("query_set.zig").QuerySet;
 
+const _copy = @import("copy.zig");
+const TexelCopyBufferInfo = _copy.TexelCopyBufferInfo;
+const TexelCopyTextureInfo = _copy.TexelCopyTextureInfo;
+
 const _texture = @import("texture.zig");
 const TextureFormat = _texture.TextureFormat;
 const TextureView = _texture.TextureView;
-const TexelCopyBufferInfo = _texture.TexelCopyBufferInfo;
-const TexelCopyTextureInfo = _texture.TexelCopyTextureInfo;
 const Extent3D = _texture.Extent3D;
 
 const _misc = @import("misc.zig");

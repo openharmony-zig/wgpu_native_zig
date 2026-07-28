@@ -9,13 +9,15 @@ pub const WGPUBool = _misc.WGPUBool;
 pub const WGPUFlags = _misc.WGPUFlags;
 pub const Status = _misc.Status;
 pub const OptionalBool = _misc.OptionalBool;
-pub const FeatureName = _misc.FeatureName;
-pub const SupportedFeatures = _misc.SupportedFeatures;
 pub const IndexFormat = _misc.IndexFormat;
 pub const CompareFunction = _misc.CompareFunction;
 pub const getVersion = _misc.getVersion;
 pub const WGPU_STRLEN = _misc.WGPU_STRLEN;
 pub const StringView = _misc.StringView;
+
+const _feature = @import("feature.zig");
+pub const FeatureName = _feature.FeatureName;
+pub const SupportedFeatures = _feature.SupportedFeatures;
 
 const _adapter = @import("adapter.zig");
 pub const PowerPreference = _adapter.PowerPreference;
@@ -235,7 +237,6 @@ pub const Surface = _surface.Surface;
 const _texture = @import("texture.zig");
 pub const WGPU_ARRAY_LAYER_COUNT_UNDEFINED = _texture.WGPU_ARRAY_LAYER_COUNT_UNDEFINED;
 pub const WGPU_MIP_LEVEL_COUNT_UNDEFINED = _texture.WGPU_MIP_LEVEL_COUNT_UNDEFINED;
-pub const WGPU_COPY_STRIDE_UNDEFINED = _texture.WGPU_COPY_STRIDE_UNDEFINED;
 pub const TextureFormat = _texture.TextureFormat;
 pub const TextureUsage = _texture.TextureUsage;
 pub const TextureUsages = _texture.TextureUsages;
@@ -256,10 +257,13 @@ pub const Extent3D = _texture.Extent3D;
 pub const TextureDescriptor = _texture.TextureDescriptor;
 pub const NativeMetalTexture = _texture.NativeMetalTexture;
 pub const Texture = _texture.Texture;
-pub const Origin3D = _texture.Origin3D;
-pub const TexelCopyTextureInfo = _texture.TexelCopyTextureInfo;
-pub const TexelCopyBufferLayout = _texture.TexelCopyBufferLayout;
-pub const TexelCopyBufferInfo = _texture.TexelCopyBufferInfo;
+
+const _copy = @import("copy.zig");
+pub const WGPU_COPY_STRIDE_UNDEFINED = _copy.WGPU_COPY_STRIDE_UNDEFINED;
+pub const Origin3D = _copy.Origin3D;
+pub const TexelCopyTextureInfo = _copy.TexelCopyTextureInfo;
+pub const TexelCopyBufferLayout = _copy.TexelCopyBufferLayout;
+pub const TexelCopyBufferInfo = _copy.TexelCopyBufferInfo;
 
 const _async = @import("async.zig");
 pub const CallbackMode = _async.CallbackMode;

@@ -9,9 +9,6 @@ const U32_MAX = _misc.U32_MAX;
 
 pub const WGPU_ARRAY_LAYER_COUNT_UNDEFINED = U32_MAX;
 pub const WGPU_MIP_LEVEL_COUNT_UNDEFINED = U32_MAX;
-pub const WGPU_COPY_STRIDE_UNDEFINED = U32_MAX;
-
-const Buffer = @import("buffer.zig").Buffer;
 
 pub const TextureFormat = enum(u32) {
     undefined = 0x00000000, // Indicates no value is passed for this argument.
@@ -334,30 +331,4 @@ pub const Texture = opaque {
     pub inline fn getNativeMetalTexture(self: *Texture) ?*NativeMetalTexture {
         return raw.call(?*NativeMetalTexture, "wgpuTextureGetNativeMetalTexture", .{self});
     }
-};
-
-pub const Origin3D = extern struct {
-    x: u32 = 0,
-    y: u32 = 0,
-    z: u32 = 0,
-};
-
-pub const TexelCopyTextureInfo = extern struct {
-    texture: *Texture,
-    mip_level: u32 = 0,
-    origin: Origin3D,
-    aspect: TextureAspect = TextureAspect.all,
-};
-
-pub const TexelCopyBufferLayout = extern struct {
-    offset: u64 = 0,
-    bytes_per_row: u32 = WGPU_COPY_STRIDE_UNDEFINED,
-    rows_per_image: u32 = WGPU_COPY_STRIDE_UNDEFINED,
-};
-
-// Seems a little weird to put this in texture.zig,
-// but it seems to have more to do with images/textures than with buffers.
-pub const TexelCopyBufferInfo = extern struct {
-    layout: TexelCopyBufferLayout,
-    buffer: *Buffer,
 };

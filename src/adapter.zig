@@ -7,10 +7,12 @@ const ChainedStructOut = _chained_struct.ChainedStructOut;
 
 const _misc = @import("misc.zig");
 const WGPUBool = _misc.WGPUBool;
-const FeatureName = _misc.FeatureName;
 const StringView = _misc.StringView;
 const Status = _misc.Status;
-const SupportedFeatures = _misc.SupportedFeatures;
+
+const _feature = @import("feature.zig");
+const FeatureName = _feature.FeatureName;
+const SupportedFeatures = _feature.SupportedFeatures;
 
 const Limits = @import("limits.zig").Limits;
 
