@@ -299,47 +299,56 @@ link modes and the matching headers.
     whereas the non-callback version looks like
     ```zig
     // The wrapper methods use polling, so 200_000_000 is the polling interval in nanoseconds.
-    const response = try instance.requestAdapterSync(io, null, 200_000_000);
+    var response = try instance.requestAdapterSync(allocator, io, null, 200_000_000);
+    defer response.deinit(allocator);
 
     const adapter_ptr: ?*Adapter = switch (response.status) {
-        .success => response.adapter,
+        .success => response.takeAdapter(),
         else => blk: {
-            std.log.err("{s}\n", .{response.message});
+            std.log.err("{s}\n", .{response.message orelse "adapter request failed"});
             break :blk null;
         }
     };
     ```
+    The synchronous response owns its copied callback message and returned handle.
+    Call `deinit()` on every response, and use `takeAdapter()` or `takeDevice()` to
+    transfer a successful handle out of it.
 - Chained structs are provided with inline functions for constructing them, which come in two forms depending on whether or not the chained struct is likely to always be required.
   - For required chained structs, you can either write them explicitely:
     ```zig
-    SurfaceDescriptor{
-        .next_in_chain = @ptrCast(&SurfaceDescriptorFromXlibWindow {
-            .chain = ChainedStruct {
-                .s_type = SType.surface_descriptor_from_xlib_window,
-            },
-            .display = display,
-            .window = window,
-        }),
-        .label = "xlib_surface_descriptor",
+    const source = SurfaceSourceXlibWindow{
+        .display = display,
+        .window = window,
+    };
+    const descriptor = SurfaceDescriptor{
+        .next_in_chain = &source.chain,
+        .label = StringView.fromSlice("xlib_surface_descriptor"),
     };
     ```
-    or use a function to construct them:
+    or use a function to construct the root descriptor:
     ```zig
-    // Here the descriptors from SurfaceDescriptor and SurfaceDescriptorFromXlibWindow have been merged,
-    // so just pass in an anonymous struct with the things that you need; default values will take care of the rest.
-    surfaceDescriptorFromXlibWindow(.{
-        .label = "xlib_surface_descriptor",
+    const source = SurfaceSourceXlibWindow{
         .display = display,
-        .window = window
-    });
+        .window = window,
+    };
+    const descriptor = surfaceDescriptorFromXlibWindow(
+        &source,
+        "xlib_surface_descriptor",
+    );
     ```
-  - For optional chained structs, you can either write them explicitely like in the example above, or you can use a method of the parent struct instance to add them, for example:
+  - For optional chained structs, create the extension separately and attach it
+    with `withExtras()`:
     ```zig
-    &(SurfaceConfiguration {
-      .device = device,
-      // other stuff
-    }).withDesiredMaxFrameLatency(2);
+    const extras = SurfaceConfigurationExtras{
+        .desired_maximum_frame_latency = 2,
+    };
+    const configuration = (SurfaceConfiguration{
+        .device = device,
+        // other fields
+    }).withExtras(&extras);
     ```
+    The source or extras value must remain alive until the native API call that
+    consumes the descriptor has returned.
 - `WGPUBool` is replaced with `bool` whenever possible.
   - This means it is replaced with `bool` in wrapper method parameters and return values, but not in structs that preserve the C ABI.
 - Callback types that belong to one handle are scoped under that handle. For example,

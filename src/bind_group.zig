@@ -71,12 +71,10 @@ pub const BindGroupLayoutEntry = extern struct {
         .access = StorageTextureAccess.binding_not_used,
     },
 
-    pub inline fn withCount(self: BindGroupLayoutEntry, count: u32) BindGroupLayoutEntry {
-        var bgle = self;
-        bgle.next_in_chain = @ptrCast(&BindGroupLayoutEntryExtras{
-            .count = count,
-        });
-        return bgle;
+    pub inline fn withExtras(self: BindGroupLayoutEntry, extras: *const BindGroupLayoutEntryExtras) BindGroupLayoutEntry {
+        var entry = self;
+        entry.next_in_chain = @ptrCast(extras);
+        return entry;
     }
 };
 
@@ -123,10 +121,10 @@ pub const BindGroupEntry = extern struct {
     sampler: ?*Sampler = null,
     texture_view: ?*TextureView = null,
 
-    pub inline fn withNativeExtras(self: BindGroupEntry, extras: *BindGroupEntryExtras) BindGroupEntry {
-        var bge = self;
-        bge.next_in_chain = @ptrCast(extras);
-        return bge;
+    pub inline fn withExtras(self: BindGroupEntry, extras: *const BindGroupEntryExtras) BindGroupEntry {
+        var entry = self;
+        entry.next_in_chain = @ptrCast(extras);
+        return entry;
     }
 };
 

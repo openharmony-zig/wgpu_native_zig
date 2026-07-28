@@ -22,14 +22,16 @@ pub fn main(init: std.process.Init) !void {
     const instance = wgpu.Instance.create(null).?;
     defer instance.release();
 
-    const adapter_request = try instance.requestAdapterSync(init.io, &wgpu.RequestAdapterOptions{}, 0);
+    var adapter_request = try instance.requestAdapterSync(init.gpa, init.io, &wgpu.RequestAdapterOptions{}, 0);
+    defer adapter_request.deinit(init.gpa);
     const adapter = switch (adapter_request.status) {
-        .success => adapter_request.adapter.?,
+        .success => adapter_request.takeAdapter().?,
         else => return error.NoAdapter,
     };
     defer adapter.release();
 
-    const device_request = try adapter.requestDeviceSync(
+    var device_request = try adapter.requestDeviceSync(
+        init.gpa,
         init.io,
         instance,
         &wgpu.DeviceDescriptor{
@@ -37,8 +39,9 @@ pub fn main(init: std.process.Init) !void {
         },
         0,
     );
+    defer device_request.deinit(init.gpa);
     const device = switch (device_request.status) {
-        .success => device_request.device.?,
+        .success => device_request.takeDevice().?,
         else => return error.NoDevice,
     };
     defer device.release();
@@ -62,9 +65,11 @@ pub fn main(init: std.process.Init) !void {
         .array_layer_count = 1,
     }).?;
 
-    const shader_module = device.createShaderModule(&wgpu.shaderModuleWGSLDescriptor(.{
-        .code = @embedFile("./shader.wgsl"),
-    })).?;
+    const shader_source = wgpu.ShaderSourceWGSL{
+        .code = wgpu.StringView.fromSlice(@embedFile("./shader.wgsl")),
+    };
+    const shader_descriptor = wgpu.shaderModuleWGSLDescriptor(&shader_source, "triangle.wgsl");
+    const shader_module = device.createShaderModule(&shader_descriptor).?;
     defer shader_module.release();
 
     const staging_buffer = device.createBuffer(&wgpu.BufferDescriptor{

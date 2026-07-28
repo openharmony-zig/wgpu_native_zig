@@ -70,6 +70,7 @@ fn unitTests(
         .{ .path = "src/instance.zig", .name = "instance-test" },
         .{ .path = "src/adapter.zig", .name = "adapter-test" },
         .{ .path = "src/pipeline.zig", .name = "pipeline-test" },
+        .{ .path = "tests/lifetimes.zig", .name = "lifetimes-test" },
     };
 
     inline for (unit_tests) |unit_test| {
@@ -79,6 +80,9 @@ fn unitTests(
             .optimize = library.optimize,
         });
         test_mod.addImport("wgpu-header", library.wgpu_c_mod);
+        if (std.mem.eql(u8, unit_test.path, "tests/lifetimes.zig")) {
+            test_mod.addImport("wgpu", library.wgpu_mod);
+        }
         library.linkTestModule(b, test_mod);
         const test_exe = b.addTest(.{
             .name = unit_test.name,

@@ -17,16 +17,18 @@ fn compute_collatz() ![4]u32 {
     const instance = wgpu.Instance.create(null).?;
     defer instance.release();
 
-    const adapter_response = try instance.requestAdapterSync(std.testing.io, null, 200_000_000);
+    var adapter_response = try instance.requestAdapterSync(testing.allocator, testing.io, null, 200_000_000);
+    defer adapter_response.deinit(testing.allocator);
     const adapter = switch (adapter_response.status) {
-        .success => adapter_response.adapter.?,
+        .success => adapter_response.takeAdapter().?,
         else => return error.NoAdapter,
     };
     defer adapter.release();
 
-    const device_response = try adapter.requestDeviceSync(std.testing.io, instance, null, 200_000_000);
+    var device_response = try adapter.requestDeviceSync(testing.allocator, testing.io, instance, null, 200_000_000);
+    defer device_response.deinit(testing.allocator);
     const device = switch (device_response.status) {
-        .success => device_response.device.?,
+        .success => device_response.takeDevice().?,
         else => return error.NoDevice,
     };
     defer device.release();
@@ -35,10 +37,11 @@ fn compute_collatz() ![4]u32 {
     defer queue.release();
     try testing.expect(queue.getTimestampPeriod() > 0);
 
-    const shader_module = device.createShaderModule(&wgpu.shaderModuleWGSLDescriptor(.{
-        .label = "compute.wgsl",
-        .code = @embedFile("./compute.wgsl"),
-    })).?;
+    const shader_source = wgpu.ShaderSourceWGSL{
+        .code = wgpu.StringView.fromSlice(@embedFile("./compute.wgsl")),
+    };
+    const shader_descriptor = wgpu.shaderModuleWGSLDescriptor(&shader_source, "compute.wgsl");
+    const shader_module = device.createShaderModule(&shader_descriptor).?;
     defer shader_module.release();
 
     const staging_buffer = device.createBuffer(&wgpu.BufferDescriptor{

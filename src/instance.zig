@@ -154,10 +154,10 @@ pub const InstanceDescriptor = extern struct {
     required_features: [*]const InstanceFeatureName = &[0]InstanceFeatureName{},
     required_limits: ?*const InstanceLimits = null,
 
-    pub inline fn withNativeExtras(self: InstanceDescriptor, extras: *InstanceExtras) InstanceDescriptor {
-        var id = self;
-        id.next_in_chain = @ptrCast(extras);
-        return id;
+    pub inline fn withExtras(self: InstanceDescriptor, extras: *const InstanceExtras) InstanceDescriptor {
+        var descriptor = self;
+        descriptor.next_in_chain = @ptrCast(extras);
+        return descriptor;
     }
 };
 
@@ -254,6 +254,28 @@ pub const Instance = opaque {
         status: RequestAdapterStatus,
         message: ?[]const u8,
         adapter: ?*Adapter,
+
+        pub fn deinit(self: *RequestAdapterResponse, allocator: std.mem.Allocator) void {
+            if (self.message) |message| allocator.free(message);
+            if (self.adapter) |adapter| adapter.release();
+            self.message = null;
+            self.adapter = null;
+        }
+
+        pub fn takeAdapter(self: *RequestAdapterResponse) ?*Adapter {
+            const adapter = self.adapter;
+            self.adapter = null;
+            return adapter;
+        }
+    };
+
+    pub const RequestAdapterSyncError = std.Io.Cancelable || std.mem.Allocator.Error;
+
+    const RequestAdapterSyncState = struct {
+        allocator: std.mem.Allocator,
+        response: RequestAdapterResponse = undefined,
+        message_error: ?std.mem.Allocator.Error = null,
+        completed: bool = false,
     };
 
     // This is a global function, but it creates an instance so I put it here.
@@ -286,45 +308,62 @@ pub const Instance = opaque {
         raw.call(void, "wgpuInstanceProcessEvents", .{self});
     }
 
-    fn defaultAdapterCallback(status: RequestAdapterStatus, adapter: ?*Adapter, message: StringView, userdata1: ?*anyopaque, userdata2: ?*anyopaque) callconv(.c) void {
-        const ud_response: *RequestAdapterResponse = @ptrCast(@alignCast(userdata1));
-        ud_response.* = RequestAdapterResponse{
+    fn defaultAdapterCallback(status: RequestAdapterStatus, adapter: ?*Adapter, message: StringView, userdata1: ?*anyopaque, _: ?*anyopaque) callconv(.c) void {
+        const state: *RequestAdapterSyncState = @ptrCast(@alignCast(userdata1));
+        state.response = .{
             .status = status,
-            .message = message.toSlice(),
+            .message = null,
             .adapter = adapter,
         };
-
-        const completed: *bool = @ptrCast(@alignCast(userdata2));
-        completed.* = true;
+        if (message.toSlice()) |slice| {
+            state.response.message = state.allocator.dupe(u8, slice) catch |err| {
+                state.message_error = err;
+                state.completed = true;
+                return;
+            };
+        }
+        state.completed = true;
     }
 
-    // This is a synchronous wrapper that handles asynchronous (callback) logic.
-    // It uses polling to see when the request has been fulfilled, so needs a polling interval parameter.
+    // This is a synchronous wrapper that handles asynchronous (callback) logic. The returned
+    // response owns its message and adapter until deinit() or takeAdapter() is called.
     pub fn requestAdapterSync(
         self: *Instance,
+        allocator: std.mem.Allocator,
         io: std.Io,
         options: ?*const RequestAdapterOptions,
         polling_interval_nanoseconds: u64,
-    ) std.Io.Cancelable!RequestAdapterResponse {
-        var response: RequestAdapterResponse = undefined;
-        var completed = false;
+    ) RequestAdapterSyncError!RequestAdapterResponse {
+        var state = RequestAdapterSyncState{ .allocator = allocator };
         const callback_info = RequestAdapterCallbackInfo{
             .callback = defaultAdapterCallback,
-            .userdata1 = @ptrCast(&response),
-            .userdata2 = @ptrCast(&completed),
+            .userdata1 = @ptrCast(&state),
         };
         const adapter_future = raw.call(Future, "wgpuInstanceRequestAdapter", .{ self, options, callback_info });
 
         // TODO: Revisit once Instance.waitAny() is implemented in wgpu-native,
         //       it takes in futures and returns when one of them completes.
         _ = adapter_future;
+        var io_error: ?std.Io.Cancelable = null;
         self.processEvents();
-        while (!completed) {
-            try io.sleep(.fromNanoseconds(polling_interval_nanoseconds), .awake);
+        while (!state.completed) {
+            if (io_error == null) {
+                io.sleep(.fromNanoseconds(polling_interval_nanoseconds), .awake) catch |err| {
+                    io_error = err;
+                };
+            }
             self.processEvents();
         }
 
-        return response;
+        if (state.message_error) |err| {
+            state.response.deinit(allocator);
+            return err;
+        }
+        if (io_error) |err| {
+            state.response.deinit(allocator);
+            return err;
+        }
+        return state.response;
     }
 
     pub inline fn requestAdapter(self: *Instance, options: ?*const RequestAdapterOptions, callback_info: RequestAdapterCallbackInfo) Future {
@@ -368,12 +407,32 @@ test "can request adapter" {
 
     const instance = Instance.create(null).?;
     defer instance.release();
-    const response = try instance.requestAdapterSync(std.testing.io, null, 200_000_000);
+    var response = try instance.requestAdapterSync(testing.allocator, testing.io, null, 200_000_000);
+    defer response.deinit(testing.allocator);
     const adapter: ?*Adapter = switch (response.status) {
-        .success => response.adapter,
+        .success => response.takeAdapter(),
         else => null,
     };
     if (adapter == null) return error.SkipZigTest;
     defer adapter.?.release();
     try testing.expect(response.status == .success);
+}
+
+test "synchronous adapter callback copies its message" {
+    const testing = @import("std").testing;
+
+    var callback_message = [_]u8{ 'o', 'l', 'd' };
+    var state = Instance.RequestAdapterSyncState{ .allocator = testing.allocator };
+    Instance.defaultAdapterCallback(
+        .@"error",
+        null,
+        StringView.fromSlice(&callback_message),
+        @ptrCast(&state),
+        null,
+    );
+    defer state.response.deinit(testing.allocator);
+
+    callback_message[0] = 'n';
+    try testing.expect(state.completed);
+    try testing.expectEqualStrings("old", state.response.message.?);
 }

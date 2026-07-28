@@ -40,36 +40,23 @@ pub const ShaderSourceSPIRV = extern struct {
     code_size: u32,
     code: [*]const u32,
 };
-pub const ShaderModuleSPIRVMergedDescriptor = struct {
-    label: []const u8 = "",
-    code_size: u32,
-    code: [*]const u32,
-};
-pub inline fn shaderModuleSPIRVDescriptor(descriptor: ShaderModuleSPIRVMergedDescriptor) ShaderModuleDescriptor {
-    return ShaderModuleDescriptor{
-        .next_in_chain = @ptrCast(&ShaderSourceSPIRV{
-            .code_size = descriptor.code_size,
-            .code = descriptor.code,
-        }),
-        .label = StringView.fromSlice(descriptor.label),
+pub inline fn shaderModuleSPIRVDescriptor(source: *const ShaderSourceSPIRV, label: []const u8) ShaderModuleDescriptor {
+    return .{
+        .next_in_chain = &source.chain,
+        .label = StringView.fromSlice(label),
     };
 }
 
 pub const ShaderSourceWGSL = extern struct { chain: ChainedStruct = ChainedStruct{
     .s_type = SType.shader_source_wgsl,
 }, code: StringView };
-pub const ShaderModuleWGSLMergedDescriptor = struct {
-    label: []const u8 = "",
-    code: []const u8,
-};
 pub inline fn shaderModuleWGSLDescriptor(
-    descriptor: ShaderModuleWGSLMergedDescriptor,
+    source: *const ShaderSourceWGSL,
+    label: []const u8,
 ) ShaderModuleDescriptor {
-    return ShaderModuleDescriptor{
-        .next_in_chain = @ptrCast(&ShaderSourceWGSL{
-            .code = StringView.fromSlice(descriptor.code),
-        }),
-        .label = StringView.fromSlice(descriptor.label),
+    return .{
+        .next_in_chain = &source.chain,
+        .label = StringView.fromSlice(label),
     };
 }
 
@@ -86,24 +73,13 @@ pub const ShaderSourceGLSL = extern struct {
     define_count: u32 = 0,
     defines: ?[*]ShaderDefine = null,
 };
-pub const ShaderModuleGLSLMergedDescriptor = struct {
-    label: []const u8 = "",
-    stage: ShaderStage,
-    code: []const u8,
-    define_count: u32 = 0,
-    defines: ?[*]ShaderDefine = null,
-};
 pub inline fn shaderModuleGLSLDescriptor(
-    descriptor: ShaderModuleGLSLMergedDescriptor,
+    source: *const ShaderSourceGLSL,
+    label: []const u8,
 ) ShaderModuleDescriptor {
-    return ShaderModuleDescriptor{
-        .next_in_chain = @ptrCast(&ShaderSourceGLSL{
-            .stage = descriptor.stage,
-            .code = StringView.fromSlice(descriptor.code),
-            .define_count = descriptor.define_count,
-            .defines = descriptor.defines,
-        }),
-        .label = StringView.fromSlice(descriptor.label),
+    return .{
+        .next_in_chain = &source.chain,
+        .label = StringView.fromSlice(label),
     };
 }
 

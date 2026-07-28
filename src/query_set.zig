@@ -35,13 +35,10 @@ pub const QuerySetDescriptor = extern struct {
     type: QueryType,
     count: u32,
 
-    pub inline fn withPipelineStatistics(self: QuerySetDescriptor, pipeline_statistic_count: usize, pipeline_statistics: [*]const PipelineStatisticName) QuerySetDescriptor {
-        var qsd = self;
-        qsd.next_in_chain = @ptrCast(&QuerySetDescriptorExtras{
-            .pipeline_statistics = pipeline_statistics,
-            .pipeline_statistic_count = pipeline_statistic_count,
-        });
-        return qsd;
+    pub inline fn withExtras(self: QuerySetDescriptor, extras: *const QuerySetDescriptorExtras) QuerySetDescriptor {
+        var descriptor = self;
+        descriptor.next_in_chain = @ptrCast(extras);
+        return descriptor;
     }
 };
 

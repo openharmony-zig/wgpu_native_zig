@@ -234,12 +234,9 @@ pub const RenderPassDescriptor = extern struct {
     occlusion_query_set: ?*QuerySet = null,
     timestamp_writes: ?*const PassTimestampWrites = null,
 
-    pub inline fn withMaxDrawCount(self: RenderPassDescriptor, max_draw_count: u64) RenderPassDescriptor {
+    pub inline fn withExtras(self: RenderPassDescriptor, extras: *const RenderPassMaxDrawCount) RenderPassDescriptor {
         var descriptor = self;
-        descriptor.next_in_chain = @ptrCast(&RenderPassMaxDrawCount{
-            .max_draw_count = max_draw_count,
-        });
-
+        descriptor.next_in_chain = @ptrCast(extras);
         return descriptor;
     }
 };

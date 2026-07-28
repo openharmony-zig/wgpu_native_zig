@@ -39,16 +39,10 @@ pub const SurfaceSourceAndroidNativeWindow = extern struct {
     // The pointer to the [`ANativeWindow`](https://developer.android.com/ndk/reference/group/a-native-window) that will be wrapped by the Surface.
     window: *anyopaque,
 };
-pub const MergedSurfaceDescriptorFromAndroidWindow = struct {
-    label: []const u8 = "",
-    window: *anyopaque,
-};
-pub inline fn surfaceDescriptorFromAndroidNativeWindow(descriptor: MergedSurfaceDescriptorFromAndroidWindow) SurfaceDescriptor {
-    return SurfaceDescriptor{
-        .next_in_chain = @ptrCast(&SurfaceSourceAndroidNativeWindow{
-            .window = descriptor.window,
-        }),
-        .label = StringView.fromSlice(descriptor.label),
+pub inline fn surfaceDescriptorFromAndroidNativeWindow(source: *const SurfaceSourceAndroidNativeWindow, label: []const u8) SurfaceDescriptor {
+    return .{
+        .next_in_chain = &source.chain,
+        .label = StringView.fromSlice(label),
     };
 }
 
@@ -61,16 +55,10 @@ pub const SurfaceSourceMetalLayer = extern struct {
     // The pointer to the [`CAMetalLayer`](https://developer.apple.com/documentation/quartzcore/cametallayer?language=objc) that will be wrapped by the Surface.
     layer: *anyopaque,
 };
-pub const MergedSurfaceDescriptorFromMetalLayer = struct {
-    label: []const u8 = "",
-    layer: *anyopaque,
-};
-pub inline fn surfaceDescriptorFromMetalLayer(descriptor: MergedSurfaceDescriptorFromMetalLayer) SurfaceDescriptor {
-    return SurfaceDescriptor{
-        .next_in_chain = @ptrCast(&SurfaceSourceMetalLayer{
-            .layer = descriptor.layer,
-        }),
-        .label = StringView.fromSlice(descriptor.label),
+pub inline fn surfaceDescriptorFromMetalLayer(source: *const SurfaceSourceMetalLayer, label: []const u8) SurfaceDescriptor {
+    return .{
+        .next_in_chain = &source.chain,
+        .label = StringView.fromSlice(label),
     };
 }
 
@@ -86,18 +74,10 @@ pub const SurfaceSourceWaylandSurface = extern struct {
     // A [`wl_surface`](https://wayland.freedesktop.org/docs/html/apa.html#protocol-spec-wl_surface) that will be wrapped by the Surface
     surface: *anyopaque,
 };
-pub const MergedSurfaceDescriptorFromWaylandSurface = struct {
-    label: []const u8 = "",
-    display: *anyopaque,
-    surface: *anyopaque,
-};
-pub inline fn surfaceDescriptorFromWaylandSurface(descriptor: MergedSurfaceDescriptorFromWaylandSurface) SurfaceDescriptor {
-    return SurfaceDescriptor{
-        .next_in_chain = @ptrCast(&SurfaceSourceWaylandSurface{
-            .display = descriptor.display,
-            .surface = descriptor.surface,
-        }),
-        .label = StringView.fromSlice(descriptor.label),
+pub inline fn surfaceDescriptorFromWaylandSurface(source: *const SurfaceSourceWaylandSurface, label: []const u8) SurfaceDescriptor {
+    return .{
+        .next_in_chain = &source.chain,
+        .label = StringView.fromSlice(label),
     };
 }
 
@@ -114,18 +94,10 @@ pub const SurfaceSourceWindowsHWND = extern struct {
     // The [`HWND`](https://learn.microsoft.com/en-us/windows/apps/develop/ui-input/retrieve-hwnd) that will be wrapped by the Surface.
     hwnd: *anyopaque,
 };
-pub const MergedSurfaceDescriptorFromWindowsHWND = struct {
-    label: []const u8 = "",
-    hinstance: *anyopaque,
-    hwnd: *anyopaque,
-};
-pub inline fn surfaceDescriptorFromWindowsHWND(descriptor: MergedSurfaceDescriptorFromWindowsHWND) SurfaceDescriptor {
-    return SurfaceDescriptor{
-        .next_in_chain = @ptrCast(&SurfaceSourceWindowsHWND{
-            .hinstance = descriptor.hinstance,
-            .hwnd = descriptor.hwnd,
-        }),
-        .label = StringView.fromSlice(descriptor.label),
+pub inline fn surfaceDescriptorFromWindowsHWND(source: *const SurfaceSourceWindowsHWND, label: []const u8) SurfaceDescriptor {
+    return .{
+        .next_in_chain = &source.chain,
+        .label = StringView.fromSlice(label),
     };
 }
 
@@ -141,18 +113,10 @@ pub const SurfaceSourceXCBWindow = extern struct {
     // The `xcb_window_t` for the window that will be wrapped by the Surface.
     window: u32,
 };
-pub const MergedSurfaceDescriptorFromXcbWindow = struct {
-    label: []const u8 = "",
-    connection: *anyopaque,
-    window: u32,
-};
-pub inline fn surfaceDescriptorFromXcbWindow(descriptor: MergedSurfaceDescriptorFromXcbWindow) SurfaceDescriptor {
-    return SurfaceDescriptor{
-        .next_in_chain = @ptrCast(&SurfaceSourceXCBWindow{
-            .connection = descriptor.connection,
-            .window = descriptor.window,
-        }),
-        .label = StringView.fromSlice(descriptor.label),
+pub inline fn surfaceDescriptorFromXcbWindow(source: *const SurfaceSourceXCBWindow, label: []const u8) SurfaceDescriptor {
+    return .{
+        .next_in_chain = &source.chain,
+        .label = StringView.fromSlice(label),
     };
 }
 
@@ -168,18 +132,10 @@ pub const SurfaceSourceXlibWindow = extern struct {
     // The [`Window`](https://www.x.org/releases/current/doc/libX11/libX11/libX11.html#Creating_Windows) that will be wrapped by the Surface.
     window: u64,
 };
-pub const MergedSurfaceDescriptorFromXlibWindow = struct {
-    label: []const u8 = "",
-    display: *anyopaque,
-    window: u64,
-};
-pub inline fn surfaceDescriptorFromXlibWindow(descriptor: MergedSurfaceDescriptorFromXlibWindow) SurfaceDescriptor {
-    return SurfaceDescriptor{
-        .next_in_chain = @ptrCast(&SurfaceSourceXlibWindow{
-            .display = descriptor.display,
-            .window = descriptor.window,
-        }),
-        .label = StringView.fromSlice(descriptor.label),
+pub inline fn surfaceDescriptorFromXlibWindow(source: *const SurfaceSourceXlibWindow, label: []const u8) SurfaceDescriptor {
+    return .{
+        .next_in_chain = &source.chain,
+        .label = StringView.fromSlice(label),
     };
 }
 
@@ -290,12 +246,10 @@ pub const SurfaceConfiguration = extern struct {
     // When and in which order the surface's frames will be shown on the screen.
     present_mode: PresentMode = PresentMode.fifo,
 
-    pub inline fn withDesiredMaxFrameLatency(self: SurfaceConfiguration, desired_max_frame_latency: u32) SurfaceConfiguration {
-        var sc = self;
-        sc.next_in_chain = @ptrCast(&SurfaceConfigurationExtras{
-            .desired_maximum_frame_latency = desired_max_frame_latency,
-        });
-        return sc;
+    pub inline fn withExtras(self: SurfaceConfiguration, extras: *const SurfaceConfigurationExtras) SurfaceConfiguration {
+        var configuration = self;
+        configuration.next_in_chain = @ptrCast(extras);
+        return configuration;
     }
 };
 

@@ -90,12 +90,10 @@ pub const DeviceDescriptor = extern struct {
     device_lost_callback_info: Device.DeviceLostCallbackInfo = .{},
     uncaptured_error_callback_info: Device.UncapturedErrorCallbackInfo = .{},
 
-    pub inline fn withTracePath(self: DeviceDescriptor, trace_path: []const u8) DeviceDescriptor {
-        var dd = self;
-        dd.next_in_chain = @ptrCast(&DeviceExtras{
-            .trace_path = StringView.fromSlice(trace_path),
-        });
-        return dd;
+    pub inline fn withExtras(self: DeviceDescriptor, extras: *const DeviceExtras) DeviceDescriptor {
+        var descriptor = self;
+        descriptor.next_in_chain = @ptrCast(extras);
+        return descriptor;
     }
 };
 

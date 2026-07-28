@@ -32,12 +32,10 @@ pub const PipelineLayoutDescriptor = extern struct {
     bind_group_layouts: [*]const *BindGroupLayout,
     immediate_size: u32 = 0,
 
-    pub inline fn withImmediateDataSize(self: PipelineLayoutDescriptor, immediate_data_size: u32) PipelineLayoutDescriptor {
-        var pld = self;
-        pld.next_in_chain = @ptrCast(&PipelineLayoutExtras{
-            .immediate_data_size = immediate_data_size,
-        });
-        return pld;
+    pub inline fn withExtras(self: PipelineLayoutDescriptor, extras: *const PipelineLayoutExtras) PipelineLayoutDescriptor {
+        var descriptor = self;
+        descriptor.next_in_chain = @ptrCast(extras);
+        return descriptor;
     }
 };
 
