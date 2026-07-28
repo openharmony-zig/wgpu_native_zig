@@ -67,6 +67,7 @@ fn unitTests(
 ) void {
     const unit_test_step = b.step("test", "Run unit tests");
     const unit_tests = .{
+        .{ .path = "src/misc.zig", .name = "misc-test" },
         .{ .path = "src/instance.zig", .name = "instance-test" },
         .{ .path = "src/adapter.zig", .name = "adapter-test" },
         .{ .path = "src/pipeline.zig", .name = "pipeline-test" },

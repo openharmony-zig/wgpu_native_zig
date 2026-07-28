@@ -78,17 +78,28 @@ pub const StringView = extern struct {
     }
 
     pub fn toSlice(self: StringView) ?[]const u8 {
-        const data = self.data orelse return null;
+        const data = self.data orelse return nullDataToSlice(self.length) catch {
+            std.debug.panic(
+                "invalid StringView: null data with non-zero length {d}",
+                .{self.length},
+            );
+        };
 
-        // test if null-terminated string
         if (self.length == WGPU_STRLEN) {
-            // Returns the slice up to, but not including, the null terminator
-            // I feel like there should be a builtin for this or something, but I don't see one in the docs.
-            // Maybe there's a simpler way to do it and I'm just overthinking it.
             return std.mem.sliceTo(@as([*:0]const u8, @ptrCast(data)), 0);
         }
 
         return data[0..self.length];
+    }
+
+    const NullDataError = error{InvalidLength};
+
+    fn nullDataToSlice(length: usize) NullDataError!?[]const u8 {
+        return switch (length) {
+            WGPU_STRLEN => null,
+            0 => "",
+            else => error.InvalidLength,
+        };
     }
 };
 
@@ -120,11 +131,24 @@ test "slice can be constructed from null-terminated StringView" {
     try std.testing.expectEqualSlices(u8, "test", sv.toSlice().?);
 }
 
-test "StringView.toSlice returns null if data is null" {
+test "StringView.toSlice distinguishes null from an empty string" {
+    const empty = StringView{
+        .data = null,
+        .length = 0,
+    };
+    try std.testing.expectEqualSlices(u8, "", empty.toSlice().?);
+
     const sv = StringView{
         .data = null,
         .length = WGPU_STRLEN,
     };
 
     try std.testing.expectEqual(null, sv.toSlice());
+}
+
+test "StringView rejects null data with a non-zero explicit length" {
+    try std.testing.expectError(
+        error.InvalidLength,
+        StringView.nullDataToSlice(1),
+    );
 }
