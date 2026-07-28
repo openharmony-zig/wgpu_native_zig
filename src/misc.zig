@@ -1,3 +1,4 @@
+const raw = @import("raw.zig");
 const std = @import("std");
 
 pub const U32_MAX: u32 = std.math.maxInt(u32);
@@ -83,19 +84,13 @@ pub const FeatureName = enum(u32) {
     shader_int64 = 0x00030026,
 };
 
-pub const SupportedFeaturesProcs = struct {
-    pub const FreeMembers = *const fn (SupportedFeatures) callconv(.c) void;
-};
-
-extern fn wgpuSupportedFeaturesFreeMembers(supported_features: SupportedFeatures) void;
-
 pub const SupportedFeatures = extern struct {
     feature_count: usize,
     features: [*]const FeatureName,
 
     // Frees array members of SupportedFeatures which were allocated by the API.
     pub inline fn freeMembers(self: SupportedFeatures) void {
-        wgpuSupportedFeaturesFreeMembers(self);
+        raw.call(void, "wgpuSupportedFeaturesFreeMembers", .{self});
     }
 };
 
@@ -117,9 +112,8 @@ pub const CompareFunction = enum(u32) {
     always = 0x00000008,
 };
 
-extern fn wgpuGetVersion() u32;
 pub inline fn getVersion() u32 {
-    return wgpuGetVersion();
+    return raw.call(u32, "wgpuGetVersion", .{});
 }
 
 // Max of usize

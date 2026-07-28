@@ -1,3 +1,4 @@
+const raw = @import("raw.zig");
 const _chained_struct = @import("chained_struct.zig");
 const SType = _chained_struct.SType;
 const ChainedStruct = _chained_struct.ChainedStruct;
@@ -298,12 +299,6 @@ pub const SurfaceConfiguration = extern struct {
     }
 };
 
-pub const SurfaceCapabilitiesProcs = struct {
-    pub const FreeMembers = *const fn (SurfaceCapabilities) callconv(.c) void;
-};
-
-extern fn wgpuSurfaceCapabilitiesFreeMembers(surface_capabilities: SurfaceCapabilities) void;
-
 // Filled by Surface.getCapabilities() with what's supported for Surface.configure() for a pair of Surface and Adapter.
 pub const SurfaceCapabilities = extern struct {
     next_in_chain: ?*ChainedStructOut = null,
@@ -328,7 +323,7 @@ pub const SurfaceCapabilities = extern struct {
 
     // Frees array members of SurfaceCapabilities which were allocated by the API.
     pub inline fn freeMembers(self: SurfaceCapabilities) void {
-        wgpuSurfaceCapabilitiesFreeMembers(self);
+        raw.call(void, "wgpuSurfaceCapabilitiesFreeMembers", .{self});
     }
 };
 
@@ -369,29 +364,9 @@ pub const SurfaceTexture = extern struct {
     status: GetCurrentTextureStatus,
 };
 
-pub const SurfaceProcs = struct {
-    pub const Configure = *const fn (*Surface, *const SurfaceConfiguration) callconv(.c) void;
-    pub const GetCapabilities = *const fn (*Surface, *Adapter, *SurfaceCapabilities) callconv(.c) Status;
-    pub const GetCurrentTexture = *const fn (*Surface, *SurfaceTexture) callconv(.c) void;
-    pub const Present = *const fn (*Surface) callconv(.c) Status;
-    pub const SetLabel = *const fn (*Surface, StringView) void;
-    pub const Unconfigure = *const fn (*Surface) callconv(.c) void;
-    pub const AddRef = *const fn (*Surface) callconv(.c) void;
-    pub const Release = *const fn (*Surface) callconv(.c) void;
-};
-
-extern fn wgpuSurfaceConfigure(surface: *Surface, config: *const SurfaceConfiguration) void;
-extern fn wgpuSurfaceGetCapabilities(surface: *Surface, adapter: *Adapter, capabilities: *SurfaceCapabilities) Status;
-extern fn wgpuSurfaceGetCurrentTexture(surface: *Surface, surface_texture: *SurfaceTexture) void;
-extern fn wgpuSurfacePresent(surface: *Surface) Status;
-extern fn wgpuSurfaceSetLabel(surface: *Surface, label: StringView) void;
-extern fn wgpuSurfaceUnconfigure(surface: *Surface) void;
-extern fn wgpuSurfaceAddRef(surface: *Surface) void;
-extern fn wgpuSurfaceRelease(surface: *Surface) void;
-
 pub const Surface = opaque {
     pub inline fn configure(self: *Surface, config: *const SurfaceConfiguration) void {
-        wgpuSurfaceConfigure(self, config);
+        raw.call(void, "wgpuSurfaceConfigure", .{ self, config });
     }
 
     // Provides information on how `adapter` is able to use `surface`.
@@ -406,7 +381,7 @@ pub const Surface = opaque {
     // Return value indicates if there was an OutStructChainError.
     //
     pub inline fn getCapabilities(self: *Surface, adapter: *Adapter, capabilities: *SurfaceCapabilities) Status {
-        return wgpuSurfaceGetCapabilities(self, adapter, capabilities);
+        return raw.call(Status, "wgpuSurfaceGetCapabilities", .{ self, adapter, capabilities });
     }
 
     // Retrieves the Texture to render to `surface` this frame along with metadata on the frame.
@@ -416,7 +391,7 @@ pub const Surface = opaque {
     // The structure to fill the Texture and metadata in.
     //
     pub inline fn getCurrentTexture(self: *Surface, surface_texture: *SurfaceTexture) void {
-        wgpuSurfaceGetCurrentTexture(self, surface_texture);
+        raw.call(void, "wgpuSurfaceGetCurrentTexture", .{ self, surface_texture });
     }
 
     // Shows `surface`'s current texture to the user.
@@ -424,7 +399,7 @@ pub const Surface = opaque {
     // Returns Status.@"error" if the surface doesn't have a current texture.
     //
     pub inline fn present(self: *Surface) Status {
-        return wgpuSurfacePresent(self);
+        return raw.call(Status, "wgpuSurfacePresent", .{self});
     }
 
     // Unimplemented as of wgpu-native v29.0.0.0,
@@ -435,13 +410,13 @@ pub const Surface = opaque {
 
     // Removes the configuration for `surface`.
     pub inline fn unconfigure(self: *Surface) void {
-        wgpuSurfaceUnconfigure(self);
+        raw.call(void, "wgpuSurfaceUnconfigure", .{self});
     }
 
     pub inline fn addRef(self: *Surface) void {
-        wgpuSurfaceAddRef(self);
+        raw.call(void, "wgpuSurfaceAddRef", .{self});
     }
     pub inline fn release(self: *Surface) void {
-        wgpuSurfaceRelease(self);
+        raw.call(void, "wgpuSurfaceRelease", .{self});
     }
 };

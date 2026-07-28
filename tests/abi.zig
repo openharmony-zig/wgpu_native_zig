@@ -47,6 +47,23 @@ fn isEnumConstant(
     return false;
 }
 
+test "all wrapper methods compile against the C headers" {
+    comptime {
+        @setEvalBranchQuota(10_000_000);
+        for (std.meta.declarations(wgpu)) |declaration| {
+            if (std.mem.eql(u8, declaration.name, "raw")) continue;
+
+            const value = @field(wgpu, declaration.name);
+            if (@TypeOf(value) != type) continue;
+            switch (@typeInfo(value)) {
+                .@"struct", .@"union", .@"enum", .@"opaque" => {},
+                else => continue,
+            }
+            std.testing.refAllDecls(value);
+        }
+    }
+}
+
 test "pure Zig structs match the C ABI" {
     comptime {
         @setEvalBranchQuota(10_000_000);

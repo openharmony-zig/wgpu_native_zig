@@ -1,3 +1,4 @@
+const raw = @import("raw.zig");
 const _chained_struct = @import("chained_struct.zig");
 const ChainedStruct = _chained_struct.ChainedStruct;
 const SType = _chained_struct.SType;
@@ -156,18 +157,6 @@ pub const CompilationInfoCallbackInfo = extern struct {
     userdata2: ?*anyopaque = null,
 };
 
-pub const ShaderModuleProcs = struct {
-    pub const GetCompilationInfo = *const fn (*ShaderModule, CompilationInfoCallbackInfo) callconv(.c) Future;
-    pub const SetLabel = *const fn (*ShaderModule, StringView) callconv(.c) void;
-    pub const AddRef = *const fn (*ShaderModule) callconv(.c) void;
-    pub const Release = *const fn (*ShaderModule) callconv(.c) void;
-};
-
-extern fn wgpuShaderModuleGetCompilationInfo(shader_module: *ShaderModule, callback_info: CompilationInfoCallbackInfo) Future;
-extern fn wgpuShaderModuleSetLabel(shader_module: *ShaderModule, label: StringView) void;
-extern fn wgpuShaderModuleAddRef(shader_module: *ShaderModule) void;
-extern fn wgpuShaderModuleRelease(shader_module: *ShaderModule) void;
-
 pub const ShaderModule = opaque {
     // Unimplemented as of wgpu-native v29.0.0.0,
     // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
@@ -182,9 +171,9 @@ pub const ShaderModule = opaque {
     // }
 
     pub inline fn addRef(self: *ShaderModule) void {
-        wgpuShaderModuleAddRef(self);
+        raw.call(void, "wgpuShaderModuleAddRef", .{self});
     }
     pub inline fn release(self: *ShaderModule) void {
-        wgpuShaderModuleRelease(self);
+        raw.call(void, "wgpuShaderModuleRelease", .{self});
     }
 };

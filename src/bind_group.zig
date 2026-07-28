@@ -1,3 +1,4 @@
+const raw = @import("raw.zig");
 const _chained_struct = @import("chained_struct.zig");
 const ChainedStruct = _chained_struct.ChainedStruct;
 const SType = _chained_struct.SType;
@@ -27,16 +28,13 @@ const StringView = _misc.StringView;
 
 pub const ExternalTexture = opaque {
     pub inline fn addRef(self: *ExternalTexture) void {
-        wgpuExternalTextureAddRef(self);
+        raw.call(void, "wgpuExternalTextureAddRef", .{self});
     }
 
     pub inline fn release(self: *ExternalTexture) void {
-        wgpuExternalTextureRelease(self);
+        raw.call(void, "wgpuExternalTextureRelease", .{self});
     }
 };
-
-extern fn wgpuExternalTextureAddRef(external_texture: *ExternalTexture) void;
-extern fn wgpuExternalTextureRelease(external_texture: *ExternalTexture) void;
 
 pub const ExternalTextureBindingLayout = extern struct {
     chain: ChainedStruct = .{
@@ -94,16 +92,6 @@ pub const BindGroupLayoutDescriptor = extern struct {
     entries: [*]const BindGroupLayoutEntry,
 };
 
-pub const BindGroupLayoutProcs = struct {
-    pub const SetLabel = *const fn (*BindGroupLayout, StringView) callconv(.c) void;
-    pub const AddRef = *const fn (*BindGroupLayout) callconv(.c) void;
-    pub const Release = *const fn (*BindGroupLayout) callconv(.c) void;
-};
-
-extern fn wgpuBindGroupLayoutSetLabel(bind_group_layout: *BindGroupLayout, label: StringView) void;
-extern fn wgpuBindGroupLayoutAddRef(bind_group_layout: *BindGroupLayout) void;
-extern fn wgpuBindGroupLayoutRelease(bind_group_layout: *BindGroupLayout) void;
-
 pub const BindGroupLayout = opaque {
     // Unimplemented as of wgpu-native v29.0.0.0,
     // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
@@ -112,10 +100,10 @@ pub const BindGroupLayout = opaque {
     // }
 
     pub inline fn addRef(self: *BindGroupLayout) void {
-        wgpuBindGroupLayoutAddRef(self);
+        raw.call(void, "wgpuBindGroupLayoutAddRef", .{self});
     }
     pub inline fn release(self: *BindGroupLayout) void {
-        wgpuBindGroupLayoutRelease(self);
+        raw.call(void, "wgpuBindGroupLayoutRelease", .{self});
     }
 };
 
@@ -155,16 +143,6 @@ pub const BindGroupDescriptor = extern struct {
     entries: [*]const BindGroupEntry,
 };
 
-pub const BindGroupProcs = struct {
-    pub const SetLabel = *const fn (*BindGroup, StringView) callconv(.c) void;
-    pub const AddRef = *const fn (*BindGroup) callconv(.c) void;
-    pub const Release = *const fn (*BindGroup) callconv(.c) void;
-};
-
-extern fn wgpuBindGroupSetLabel(bind_group: *BindGroup, label: StringView) void;
-extern fn wgpuBindGroupAddRef(bind_group: *BindGroup) void;
-extern fn wgpuBindGroupRelease(bind_group: *BindGroup) void;
-
 pub const BindGroup = opaque {
     // Unimplemented as of wgpu-native v29.0.0.0,
     // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
@@ -173,9 +151,9 @@ pub const BindGroup = opaque {
     // }
 
     pub inline fn addRef(self: *BindGroup) void {
-        wgpuBindGroupAddRef(self);
+        raw.call(void, "wgpuBindGroupAddRef", .{self});
     }
     pub inline fn release(self: *BindGroup) void {
-        wgpuBindGroupRelease(self);
+        raw.call(void, "wgpuBindGroupRelease", .{self});
     }
 };

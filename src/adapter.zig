@@ -1,3 +1,4 @@
+const raw = @import("raw.zig");
 const std = @import("std");
 
 const _chained_struct = @import("chained_struct.zig");
@@ -125,12 +126,6 @@ pub const RequestAdapterResponse = struct {
     adapter: ?*Adapter,
 };
 
-pub const AdapterInfoProcs = struct {
-    pub const FreeMembers = *const fn (AdapterInfo) callconv(.c) void;
-};
-
-extern fn wgpuAdapterInfoFreeMembers(adapter_info: AdapterInfo) void;
-
 pub const AdapterInfo = extern struct {
     next_in_chain: ?*ChainedStructOut = null,
     vendor: StringView,
@@ -145,40 +140,22 @@ pub const AdapterInfo = extern struct {
     subgroup_max_size: u32,
 
     pub inline fn freeMembers(self: AdapterInfo) void {
-        wgpuAdapterInfoFreeMembers(self);
+        raw.call(void, "wgpuAdapterInfoFreeMembers", .{self});
     }
 };
-
-pub const AdapterProcs = struct {
-    pub const GetFeatures = *const fn (*Adapter, *SupportedFeatures) callconv(.c) void;
-    pub const GetLimits = *const fn (*Adapter, *Limits) callconv(.c) Status;
-    pub const GetInfo = *const fn (*Adapter, *AdapterInfo) callconv(.c) Status;
-    pub const HasFeature = *const fn (*Adapter, FeatureName) callconv(.c) WGPUBool;
-    pub const RequestDevice = *const fn (*Adapter, ?*const DeviceDescriptor, RequestDeviceCallbackInfo) callconv(.c) Future;
-    pub const AddRef = *const fn (*Adapter) callconv(.c) void;
-    pub const Release = *const fn (*Adapter) callconv(.c) void;
-};
-
-extern fn wgpuAdapterGetFeatures(adapter: *Adapter, features: *SupportedFeatures) void;
-extern fn wgpuAdapterGetLimits(adapter: *Adapter, limits: *Limits) Status;
-extern fn wgpuAdapterGetInfo(adapter: *Adapter, info: *AdapterInfo) Status;
-extern fn wgpuAdapterHasFeature(adapter: *Adapter, feature: FeatureName) WGPUBool;
-extern fn wgpuAdapterRequestDevice(adapter: *Adapter, descriptor: ?*const DeviceDescriptor, callback_info: RequestDeviceCallbackInfo) Future;
-extern fn wgpuAdapterAddRef(adapter: *Adapter) void;
-extern fn wgpuAdapterRelease(adapter: *Adapter) void;
 
 pub const Adapter = opaque {
     pub inline fn getFeatures(self: *Adapter, features: *SupportedFeatures) void {
-        wgpuAdapterGetFeatures(self, features);
+        raw.call(void, "wgpuAdapterGetFeatures", .{ self, features });
     }
     pub inline fn getLimits(self: *Adapter, limits: *Limits) Status {
-        return wgpuAdapterGetLimits(self, limits);
+        return raw.call(Status, "wgpuAdapterGetLimits", .{ self, limits });
     }
     pub inline fn getInfo(self: *Adapter, info: *AdapterInfo) Status {
-        return wgpuAdapterGetInfo(self, info);
+        return raw.call(Status, "wgpuAdapterGetInfo", .{ self, info });
     }
     pub inline fn hasFeature(self: *Adapter, feature: FeatureName) bool {
-        return wgpuAdapterHasFeature(self, feature) != 0;
+        return raw.call(WGPUBool, "wgpuAdapterHasFeature", .{ self, feature }) != 0;
     }
 
     fn defaultDeviceCallback(status: RequestDeviceStatus, device: ?*Device, message: StringView, userdata1: ?*anyopaque, userdata2: ?*anyopaque) callconv(.c) void {
@@ -209,7 +186,7 @@ pub const Adapter = opaque {
             .userdata1 = @ptrCast(&response),
             .userdata2 = @ptrCast(&completed),
         };
-        const device_future = wgpuAdapterRequestDevice(self, descriptor, callback_info);
+        const device_future = raw.call(Future, "wgpuAdapterRequestDevice", .{ self, descriptor, callback_info });
 
         // TODO: Revisit once Instance.waitAny() is implemented in wgpu-native,
         //       it takes in futures and returns when one of them completes.
@@ -224,13 +201,13 @@ pub const Adapter = opaque {
     }
 
     pub inline fn requestDevice(self: *Adapter, descriptor: ?*const DeviceDescriptor, callback_info: RequestDeviceCallbackInfo) Future {
-        return wgpuAdapterRequestDevice(self, descriptor, callback_info);
+        return raw.call(Future, "wgpuAdapterRequestDevice", .{ self, descriptor, callback_info });
     }
     pub inline fn addRef(self: *Adapter) void {
-        wgpuAdapterAddRef(self);
+        raw.call(void, "wgpuAdapterAddRef", .{self});
     }
     pub inline fn release(self: *Adapter) void {
-        wgpuAdapterRelease(self);
+        raw.call(void, "wgpuAdapterRelease", .{self});
     }
 };
 

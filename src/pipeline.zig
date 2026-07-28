@@ -1,3 +1,4 @@
+const raw = @import("raw.zig");
 const _chained_struct = @import("chained_struct.zig");
 const ChainedStruct = _chained_struct.ChainedStruct;
 const SType = _chained_struct.SType;
@@ -43,16 +44,6 @@ pub const PipelineLayoutDescriptor = extern struct {
     }
 };
 
-pub const PipelineLayoutProcs = struct {
-    pub const SetLabel = *const fn (*PipelineLayout, StringView) callconv(.c) void;
-    pub const AddRef = *const fn (*PipelineLayout) callconv(.c) void;
-    pub const Release = *const fn (*PipelineLayout) callconv(.c) void;
-};
-
-extern fn wgpuPipelineLayoutSetLabel(pipeline_layout: *PipelineLayout, label: StringView) void;
-extern fn wgpuPipelineLayoutAddRef(pipeline_layout: *PipelineLayout) void;
-extern fn wgpuPipelineLayoutRelease(pipeline_layout: *PipelineLayout) void;
-
 pub const PipelineLayout = opaque {
 
     // Unimplemented as of wgpu-native v29.0.0.0,
@@ -62,10 +53,10 @@ pub const PipelineLayout = opaque {
     // }
 
     pub inline fn addRef(self: *PipelineLayout) void {
-        wgpuPipelineLayoutAddRef(self);
+        raw.call(void, "wgpuPipelineLayoutAddRef", .{self});
     }
     pub inline fn release(self: *PipelineLayout) void {
-        wgpuPipelineLayoutRelease(self);
+        raw.call(void, "wgpuPipelineLayoutRelease", .{self});
     }
 };
 
@@ -117,21 +108,9 @@ pub const CreateComputePipelineAsyncCallback = *const fn (
     userdata2: ?*anyopaque,
 ) callconv(.c) void;
 
-pub const ComputePipelineProcs = struct {
-    pub const GetBindGroupLayout = *const fn (*ComputePipeline, u32) callconv(.c) ?*BindGroupLayout;
-    pub const SetLabel = *const fn (*ComputePipeline, StringView) callconv(.c) void;
-    pub const AddRef = *const fn (*ComputePipeline) callconv(.c) void;
-    pub const Release = *const fn (*ComputePipeline) callconv(.c) void;
-};
-
-extern fn wgpuComputePipelineGetBindGroupLayout(compute_pipeline: *ComputePipeline, group_index: u32) ?*BindGroupLayout;
-extern fn wgpuComputePipelineSetLabel(compute_pipeline: *ComputePipeline, label: StringView) void;
-extern fn wgpuComputePipelineAddRef(compute_pipeline: *ComputePipeline) void;
-extern fn wgpuComputePipelineRelease(compute_pipeline: *ComputePipeline) void;
-
 pub const ComputePipeline = opaque {
     pub inline fn getBindGroupLayout(self: *ComputePipeline, group_index: u32) ?*BindGroupLayout {
-        return wgpuComputePipelineGetBindGroupLayout(self, group_index);
+        return raw.call(?*BindGroupLayout, "wgpuComputePipelineGetBindGroupLayout", .{ self, group_index });
     }
 
     // Unimplemented as of wgpu-native v29.0.0.0,
@@ -141,10 +120,10 @@ pub const ComputePipeline = opaque {
     // }
 
     pub inline fn addRef(self: *ComputePipeline) void {
-        wgpuComputePipelineAddRef(self);
+        raw.call(void, "wgpuComputePipelineAddRef", .{self});
     }
     pub inline fn release(self: *ComputePipeline) void {
-        wgpuComputePipelineRelease(self);
+        raw.call(void, "wgpuComputePipelineRelease", .{self});
     }
 };
 
@@ -427,21 +406,9 @@ pub const RenderPipelineDescriptor = extern struct {
     fragment: ?*const FragmentState = null,
 };
 
-pub const RenderPipelineProcs = struct {
-    pub const GetBindGroupLayout = *const fn (*RenderPipeline, u32) callconv(.c) ?*BindGroupLayout;
-    pub const SetLabel = *const fn (*RenderPipeline, StringView) callconv(.c) void;
-    pub const AddRef = *const fn (*RenderPipeline) callconv(.c) void;
-    pub const Release = *const fn (*RenderPipeline) callconv(.c) void;
-};
-
-extern fn wgpuRenderPipelineGetBindGroupLayout(render_pipeline: *RenderPipeline, group_index: u32) ?*BindGroupLayout;
-extern fn wgpuRenderPipelineSetLabel(render_pipeline: *RenderPipeline, label: StringView) void;
-extern fn wgpuRenderPipelineAddRef(render_pipeline: *RenderPipeline) void;
-extern fn wgpuRenderPipelineRelease(render_pipeline: *RenderPipeline) void;
-
 pub const RenderPipeline = opaque {
     pub inline fn getBindGroupLayout(self: *RenderPipeline, group_index: u32) ?*BindGroupLayout {
-        return wgpuRenderPipelineGetBindGroupLayout(self, group_index);
+        return raw.call(?*BindGroupLayout, "wgpuRenderPipelineGetBindGroupLayout", .{ self, group_index });
     }
 
     // Unimplemented as of wgpu-native v29.0.0.0,
@@ -451,10 +418,10 @@ pub const RenderPipeline = opaque {
     // }
 
     pub inline fn addRef(self: *RenderPipeline) void {
-        wgpuRenderPipelineAddRef(self);
+        raw.call(void, "wgpuRenderPipelineAddRef", .{self});
     }
     pub inline fn release(self: *RenderPipeline) void {
-        wgpuRenderPipelineRelease(self);
+        raw.call(void, "wgpuRenderPipelineRelease", .{self});
     }
 };
 

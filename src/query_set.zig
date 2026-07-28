@@ -1,3 +1,4 @@
+const raw = @import("raw.zig");
 const _chained_struct = @import("chained_struct.zig");
 const ChainedStruct = _chained_struct.ChainedStruct;
 const SType = _chained_struct.SType;
@@ -44,31 +45,15 @@ pub const QuerySetDescriptor = extern struct {
     }
 };
 
-pub const QuerySetProcs = struct {
-    pub const Destroy = *const fn (*QuerySet) callconv(.c) void;
-    pub const GetCount = *const fn (*QuerySet) callconv(.c) u32;
-    pub const GetType = *const fn (*QuerySet) callconv(.c) QueryType;
-    pub const SetLabel = *const fn (*QuerySet, StringView) callconv(.c) void;
-    pub const AddRef = *const fn (*QuerySet) callconv(.c) void;
-    pub const Release = *const fn (*QuerySet) callconv(.c) void;
-};
-
-extern fn wgpuQuerySetDestroy(query_set: *QuerySet) void;
-extern fn wgpuQuerySetGetCount(query_set: *QuerySet) u32;
-extern fn wgpuQuerySetGetType(query_set: *QuerySet) QueryType;
-extern fn wgpuQuerySetSetLabel(query_set: *QuerySet, label: StringView) void;
-extern fn wgpuQuerySetAddRef(query_set: *QuerySet) void;
-extern fn wgpuQuerySetRelease(query_set: *QuerySet) void;
-
 pub const QuerySet = opaque {
     pub inline fn destroy(self: *QuerySet) void {
-        wgpuQuerySetDestroy(self);
+        raw.call(void, "wgpuQuerySetDestroy", .{self});
     }
     pub inline fn getCount(self: *QuerySet) u32 {
-        return wgpuQuerySetGetCount(self);
+        return raw.call(u32, "wgpuQuerySetGetCount", .{self});
     }
     pub inline fn getType(self: *QuerySet) QueryType {
-        return wgpuQuerySetGetType(self);
+        return raw.call(QueryType, "wgpuQuerySetGetType", .{self});
     }
 
     // Unimplemented as of wgpu-native v29.0.0.0,
@@ -78,9 +63,9 @@ pub const QuerySet = opaque {
     // }
 
     pub inline fn addRef(self: *QuerySet) void {
-        wgpuQuerySetAddRef(self);
+        raw.call(void, "wgpuQuerySetAddRef", .{self});
     }
     pub inline fn release(self: *QuerySet) void {
-        wgpuQuerySetRelease(self);
+        raw.call(void, "wgpuQuerySetRelease", .{self});
     }
 };

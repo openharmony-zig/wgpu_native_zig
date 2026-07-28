@@ -11,6 +11,7 @@ const CallbackMode = _async.CallbackMode;
 const Future = _async.Future;
 
 const ChainedStruct = @import("chained_struct.zig").ChainedStruct;
+const raw = @import("raw.zig");
 
 pub const BufferBindingType = enum(u32) {
     binding_not_used = 0x00000000, // Indicates that this BufferBindingLayout member of its parent BindGroupLayoutEntry is not used.
@@ -83,35 +84,9 @@ pub const BufferDescriptor = extern struct {
     mapped_at_creation: WGPUBool = @intFromBool(false),
 };
 
-pub const BufferProcs = struct {
-    pub const Destroy = *const fn (*Buffer) callconv(.c) void;
-    pub const GetConstMappedRange = *const fn (*Buffer, usize, usize) callconv(.c) ?*const anyopaque;
-    pub const GetMapState = *const fn (*Buffer) callconv(.c) BufferMapState;
-    pub const GetMappedRange = *const fn (*Buffer, usize, usize) callconv(.c) ?*anyopaque;
-    pub const GetSize = *const fn (*Buffer) callconv(.c) u64;
-    pub const GetUsage = *const fn (*Buffer) callconv(.c) BufferUsage;
-    pub const MapAsync = *const fn (*Buffer, MapMode, usize, usize, BufferMapCallbackInfo) callconv(.c) Future;
-    pub const SetLabel = *const fn (*Buffer, StringView) callconv(.c) void;
-    pub const Unmap = *const fn (*Buffer) callconv(.c) void;
-    pub const AddRef = *const fn (*Buffer) callconv(.c) void;
-    pub const Release = *const fn (*Buffer) callconv(.c) void;
-};
-
-extern fn wgpuBufferDestroy(buffer: *Buffer) void;
-extern fn wgpuBufferGetConstMappedRange(buffer: *Buffer, offset: usize, size: usize) ?*const anyopaque;
-extern fn wgpuBufferGetMapState(buffer: *Buffer) BufferMapState;
-extern fn wgpuBufferGetMappedRange(buffer: *Buffer, offset: usize, size: usize) ?*anyopaque;
-extern fn wgpuBufferGetSize(buffer: *Buffer) u64;
-extern fn wgpuBufferGetUsage(buffer: *Buffer) BufferUsage;
-extern fn wgpuBufferMapAsync(buffer: *Buffer, mode: MapMode, offset: usize, size: usize, callback_info: BufferMapCallbackInfo) Future;
-extern fn wgpuBufferSetLabel(buffer: *Buffer, label: StringView) void;
-extern fn wgpuBufferUnmap(buffer: *Buffer) void;
-extern fn wgpuBufferAddRef(buffer: *Buffer) void;
-extern fn wgpuBufferRelease(buffer: *Buffer) void;
-
 pub const Buffer = opaque {
     pub inline fn destroy(self: *Buffer) void {
-        wgpuBufferDestroy(self);
+        raw.call(void, "wgpuBufferDestroy", .{self});
     }
 
     // offset
@@ -130,7 +105,7 @@ pub const Buffer = opaque {
     //
     // wgpu-native translates a size of WGPU_WHOLE_MAP_SIZE to "None" internally
     pub inline fn getConstMappedRange(self: *Buffer, offset: usize, size: usize) ?*const anyopaque {
-        return wgpuBufferGetConstMappedRange(self, offset, size);
+        return raw.call(?*const anyopaque, "wgpuBufferGetConstMappedRange", .{ self, offset, size });
     }
 
     // Unimplemented as of wgpu-native v29.0.0.0,
@@ -153,18 +128,18 @@ pub const Buffer = opaque {
     //
     // wgpu-native translates a size of WGPU_WHOLE_MAP_SIZE to "None" internally
     pub inline fn getMappedRange(self: *Buffer, offset: usize, size: usize) ?*anyopaque {
-        return wgpuBufferGetMappedRange(self, offset, size);
+        return raw.call(?*anyopaque, "wgpuBufferGetMappedRange", .{ self, offset, size });
     }
 
     pub inline fn getSize(self: *Buffer) u64 {
-        return wgpuBufferGetSize(self);
+        return raw.call(u64, "wgpuBufferGetSize", .{self});
     }
     pub inline fn getUsage(self: *Buffer) BufferUsage {
-        return wgpuBufferGetUsage(self);
+        return raw.call(BufferUsage, "wgpuBufferGetUsage", .{self});
     }
 
     pub inline fn mapAsync(self: *Buffer, mode: MapMode, offset: usize, size: usize, callback_info: BufferMapCallbackInfo) Future {
-        return wgpuBufferMapAsync(self, mode, offset, size, callback_info);
+        return raw.call(Future, "wgpuBufferMapAsync", .{ self, mode, offset, size, callback_info });
     }
 
     // Unimplemented as of wgpu-native v29.0.0.0,
@@ -174,12 +149,12 @@ pub const Buffer = opaque {
     // }
 
     pub inline fn unmap(self: *Buffer) void {
-        wgpuBufferUnmap(self);
+        raw.call(void, "wgpuBufferUnmap", .{self});
     }
     pub inline fn addRef(self: *Buffer) void {
-        wgpuBufferAddRef(self);
+        raw.call(void, "wgpuBufferAddRef", .{self});
     }
     pub inline fn release(self: *Buffer) void {
-        wgpuBufferRelease(self);
+        raw.call(void, "wgpuBufferRelease", .{self});
     }
 };
