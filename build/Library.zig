@@ -27,12 +27,20 @@ pub const Result = struct {
         return self.platform.kind == .android;
     }
 
+    pub fn isIos(self: Result) bool {
+        return self.target.result.os.tag == .ios;
+    }
+
     pub fn linkModule(
         self: Result,
         b: *std.Build,
         mod: *std.Build.Module,
     ) void {
-        mod.link_libcpp = true;
+        if (self.platform.kind != .apple and
+            self.platform.kind != .android)
+        {
+            mod.link_libcpp = true;
+        }
         Platform.configureModule(
             b,
             self.platform,

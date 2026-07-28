@@ -7,15 +7,27 @@ pub fn build(b: *std.Build) void {
         "check",
         "Compile the bindings and all target-compatible tests",
     );
+    const audit_step = b.step(
+        "audit",
+        "Compile the binding coverage and ABI audits",
+    );
 
-    bindingTest(b, library, check_step);
-    abiTest(b, library, check_step);
+    bindingTest(b, library, audit_step);
+    abiTest(b, library, audit_step);
+    check_step.dependOn(audit_step);
 
-    if (library.isOhos()) {
-        linkProbe(b, library, check_step);
+    if (library.isOhos() or library.isAndroid() or library.isIos()) {
+        // Rust's legacy x86_64-apple-ios target emits the historical
+        // x86_64-ios Mach-O platform marker. Zig 0.16's linker rejects that
+        // marker for an explicit simulator output, so this target can run the
+        // compile-time audits but not a Zig link probe.
+        if (!library.isIos() or
+            library.target.result.cpu.arch != .x86_64)
+        {
+            linkProbe(b, library, check_step);
+        }
         return;
     }
-    if (library.isAndroid()) return;
 
     unitTests(b, library, check_step);
     computeTests(b, library, check_step);
@@ -71,7 +83,10 @@ fn unitTests(
         .{ .path = "src/async.zig", .name = "async-test" },
         .{ .path = "src/instance.zig", .name = "instance-test" },
         .{ .path = "src/adapter.zig", .name = "adapter-test" },
+        .{ .path = "src/buffer.zig", .name = "buffer-test" },
+        .{ .path = "src/device.zig", .name = "device-test" },
         .{ .path = "src/pipeline.zig", .name = "pipeline-test" },
+        .{ .path = "src/queue.zig", .name = "queue-test" },
         .{ .path = "tests/lifetimes.zig", .name = "lifetimes-test" },
         .{ .path = "tests/ownership.zig", .name = "ownership-test" },
     };

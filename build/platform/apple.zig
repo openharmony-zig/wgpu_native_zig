@@ -76,11 +76,23 @@ pub fn configureModule(
 ) void {
     // Explicit Apple targets do not inherit native SDK search paths.
     if (config.apple_sdk_root) |sdk_root| {
-        mod.addLibraryPath(.{ .cwd_relative = b.pathJoin(&.{
+        // linkSystemLibrary("c++") is normalized to Zig's bundled libc++.
+        // Apple targets must instead link the SDK-provided text stub directly.
+        mod.link_libcpp = false;
+        mod.addSystemIncludePath(.{ .cwd_relative = b.pathJoin(&.{
             sdk_root,
             "usr",
-            "lib",
+            "include",
         }) });
+        const sdk_library_dir: std.Build.LazyPath = .{
+            .cwd_relative = b.pathJoin(&.{
+                sdk_root,
+                "usr",
+                "lib",
+            }),
+        };
+        mod.addLibraryPath(sdk_library_dir);
+        mod.addObjectFile(sdk_library_dir.path(b, "libc++.tbd"));
         mod.addSystemFrameworkPath(.{ .cwd_relative = b.pathJoin(&.{
             sdk_root,
             "System",
@@ -94,9 +106,23 @@ pub fn configureModule(
 }
 
 pub fn configureTranslateC(
-    _: types.Config,
-    _: *std.Build.Step.TranslateC,
-) void {}
+    config: types.Config,
+    translate_c: *std.Build.Step.TranslateC,
+) void {
+    const sdk_root = config.apple_sdk_root orelse return;
+    const b = translate_c.step.owner;
+    translate_c.addSystemIncludePath(.{ .cwd_relative = b.pathJoin(&.{
+        sdk_root,
+        "usr",
+        "include",
+    }) });
+    translate_c.addSystemFrameworkPath(.{ .cwd_relative = b.pathJoin(&.{
+        sdk_root,
+        "System",
+        "Library",
+        "Frameworks",
+    }) });
+}
 
 pub fn configureCompile(_: types.Config, _: *std.Build.Step.Compile) void {}
 

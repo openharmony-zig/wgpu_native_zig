@@ -43,7 +43,7 @@ pub fn configureSource(
     config: types.Config,
 ) void {
     const toolchain_root = toolchainRoot(b, config);
-    const api_level = b.graph.environ_map.get("ANDROID_API_LEVEL") orelse "21";
+    const api_level = apiLevel(b, config);
     const clang_target = config.clang_target.?;
     const linker = b.pathJoin(&.{
         toolchain_root,
@@ -66,11 +66,44 @@ pub fn configureSource(
 }
 
 pub fn configureModule(
-    _: *std.Build,
-    _: types.Config,
-    _: *std.Build.Module,
+    b: *std.Build,
+    config: types.Config,
+    mod: *std.Build.Module,
     _: std.builtin.LinkMode,
-) void {}
+) void {
+    // Zig does not bundle an Android libc. Link the NDK runtime and platform
+    // stubs directly instead of requesting Zig's libc/libc++ builds.
+    mod.link_libc = false;
+    mod.link_libcpp = false;
+
+    const target_library_dir: std.Build.LazyPath = .{
+        .cwd_relative = b.pathJoin(&.{
+            toolchainRoot(b, config),
+            "sysroot",
+            "usr",
+            "lib",
+            systemIncludeTarget(config),
+        }),
+    };
+    const platform_library_dir = target_library_dir.path(
+        b,
+        apiLevel(b, config),
+    );
+    mod.addLibraryPath(target_library_dir);
+    mod.addLibraryPath(platform_library_dir);
+
+    mod.addObjectFile(target_library_dir.path(b, "libc++_static.a"));
+    mod.addObjectFile(target_library_dir.path(b, "libc++abi.a"));
+    inline for ([_][]const u8{
+        "libc.so",
+        "libm.so",
+        "libdl.so",
+        "libandroid.so",
+        "liblog.so",
+    }) |library| {
+        mod.addObjectFile(platform_library_dir.path(b, library));
+    }
+}
 
 pub fn configureTranslateC(
     config: types.Config,
@@ -119,6 +152,13 @@ fn toolchainRoot(b: *std.Build, config: types.Config) []const u8 {
         "prebuilt",
         host_dir,
     });
+}
+
+fn apiLevel(b: *std.Build, config: types.Config) []const u8 {
+    return b.graph.environ_map.get("ANDROID_API_LEVEL") orelse b.fmt(
+        "{d}",
+        .{config.target.result.os.version_range.linux.android},
+    );
 }
 
 fn systemIncludeTarget(config: types.Config) []const u8 {
