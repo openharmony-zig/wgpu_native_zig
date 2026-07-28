@@ -31,6 +31,14 @@ pub const ShaderModuleDescriptorSpirV = extern struct {
     label: StringView = StringView{},
     source_size: u32,
     source: [*]const u32,
+
+    /// Initializes a descriptor that borrows `source`.
+    pub inline fn init(source: []const u32) ShaderModuleDescriptorSpirV {
+        return .{
+            .source_size = @intCast(source.len),
+            .source = source.ptr,
+        };
+    }
 };
 
 pub const ShaderSourceSPIRV = extern struct {
@@ -39,37 +47,32 @@ pub const ShaderSourceSPIRV = extern struct {
     },
     code_size: u32,
     code: [*]const u32,
+
+    /// Initializes a chained source that borrows `code`.
+    pub inline fn init(code: []const u32) ShaderSourceSPIRV {
+        return .{
+            .code_size = @intCast(code.len),
+            .code = code.ptr,
+        };
+    }
 };
-pub const ShaderModuleSPIRVMergedDescriptor = struct {
-    label: []const u8 = "",
-    code_size: u32,
-    code: [*]const u32,
-};
-pub inline fn shaderModuleSPIRVDescriptor(descriptor: ShaderModuleSPIRVMergedDescriptor) ShaderModuleDescriptor {
-    return ShaderModuleDescriptor{
-        .next_in_chain = @ptrCast(&ShaderSourceSPIRV{
-            .code_size = descriptor.code_size,
-            .code = descriptor.code,
-        }),
-        .label = StringView.fromSlice(descriptor.label),
+pub inline fn shaderModuleSPIRVDescriptor(source: *const ShaderSourceSPIRV, label: []const u8) ShaderModuleDescriptor {
+    return .{
+        .next_in_chain = &source.chain,
+        .label = StringView.fromSlice(label),
     };
 }
 
 pub const ShaderSourceWGSL = extern struct { chain: ChainedStruct = ChainedStruct{
     .s_type = SType.shader_source_wgsl,
 }, code: StringView };
-pub const ShaderModuleWGSLMergedDescriptor = struct {
-    label: []const u8 = "",
-    code: []const u8,
-};
 pub inline fn shaderModuleWGSLDescriptor(
-    descriptor: ShaderModuleWGSLMergedDescriptor,
+    source: *const ShaderSourceWGSL,
+    label: []const u8,
 ) ShaderModuleDescriptor {
-    return ShaderModuleDescriptor{
-        .next_in_chain = @ptrCast(&ShaderSourceWGSL{
-            .code = StringView.fromSlice(descriptor.code),
-        }),
-        .label = StringView.fromSlice(descriptor.label),
+    return .{
+        .next_in_chain = &source.chain,
+        .label = StringView.fromSlice(label),
     };
 }
 
@@ -84,80 +87,85 @@ pub const ShaderSourceGLSL = extern struct {
     stage: ShaderStage,
     code: StringView,
     define_count: u32 = 0,
-    defines: ?[*]ShaderDefine = null,
-};
-pub const ShaderModuleGLSLMergedDescriptor = struct {
-    label: []const u8 = "",
-    stage: ShaderStage,
-    code: []const u8,
-    define_count: u32 = 0,
-    defines: ?[*]ShaderDefine = null,
+    defines: ?[*]const ShaderDefine = null,
+
+    /// Returns a source that borrows `defines`.
+    pub inline fn withDefines(
+        self: ShaderSourceGLSL,
+        defines: []const ShaderDefine,
+    ) ShaderSourceGLSL {
+        var source = self;
+        source.define_count = @intCast(defines.len);
+        source.defines = if (defines.len == 0) null else defines.ptr;
+        return source;
+    }
 };
 pub inline fn shaderModuleGLSLDescriptor(
-    descriptor: ShaderModuleGLSLMergedDescriptor,
+    source: *const ShaderSourceGLSL,
+    label: []const u8,
 ) ShaderModuleDescriptor {
-    return ShaderModuleDescriptor{
-        .next_in_chain = @ptrCast(&ShaderSourceGLSL{
-            .stage = descriptor.stage,
-            .code = StringView.fromSlice(descriptor.code),
-            .define_count = descriptor.define_count,
-            .defines = descriptor.defines,
-        }),
-        .label = StringView.fromSlice(descriptor.label),
+    return .{
+        .next_in_chain = &source.chain,
+        .label = StringView.fromSlice(label),
     };
 }
 
-pub const CompilationInfoRequestStatus = enum(u32) {
-    success = 0x00000001,
-    callback_cancelled = 0x00000002,
-};
-
-pub const CompilationMessageType = enum(u32) {
-    @"error" = 0x00000001,
-    warning = 0x00000002,
-    info = 0x00000003,
-};
-
-pub const CompilationMessage = extern struct {
-    next_in_chain: ?*const ChainedStruct = null,
-    message: StringView,
-
-    // Severity level of the message.
-    type: CompilationMessageType,
-
-    // Line number where the message is attached, starting at 1.
-    line_num: u64,
-
-    // Offset in UTF-8 code units (bytes) from the beginning of the line, starting at 1.
-    line_pos: u64,
-
-    // Offset in UTF-8 code units (bytes) from the beginning of the shader code, starting at 0.
-    offset: u64,
-
-    // Length in UTF-8 code units (bytes) of the span the message corresponds to.
-    length: u64,
-};
-
-pub const CompilationInfo = extern struct {
-    next_in_chain: ?*const ChainedStruct = null,
-    message_count: usize,
-    messages: [*]const CompilationMessage,
-};
-
-pub const CompilationInfoCallback = *const fn (status: CompilationInfoRequestStatus, compilationInfo: ?*const CompilationInfo, userdata1: ?*anyopaque, userdata2: ?*anyopaque) callconv(.c) void;
-
-pub const CompilationInfoCallbackInfo = extern struct {
-    next_in_chain: ?*const ChainedStruct = null,
-
-    // TODO: Revisit this default if/when Instance.waitAny() is implemented.
-    mode: CallbackMode = CallbackMode.allow_process_events,
-
-    callback: CompilationInfoCallback,
-    userdata1: ?*anyopaque = null,
-    userdata2: ?*anyopaque = null,
-};
-
 pub const ShaderModule = opaque {
+    pub const CompilationInfoRequestStatus = enum(u32) {
+        success = 0x00000001,
+        callback_cancelled = 0x00000002,
+    };
+
+    pub const CompilationMessageType = enum(u32) {
+        @"error" = 0x00000001,
+        warning = 0x00000002,
+        info = 0x00000003,
+    };
+
+    pub const CompilationMessage = extern struct {
+        next_in_chain: ?*const ChainedStruct = null,
+        message: StringView,
+
+        // Severity level of the message.
+        type: CompilationMessageType,
+
+        // Line number where the message is attached, starting at 1.
+        line_num: u64,
+
+        // Offset in UTF-8 code units (bytes) from the beginning of the line, starting at 1.
+        line_pos: u64,
+
+        // Offset in UTF-8 code units (bytes) from the beginning of the shader code, starting at 0.
+        offset: u64,
+
+        // Length in UTF-8 code units (bytes) of the span the message corresponds to.
+        length: u64,
+    };
+
+    pub const CompilationInfo = extern struct {
+        next_in_chain: ?*const ChainedStruct = null,
+        message_count: usize,
+        messages: [*]const CompilationMessage,
+    };
+
+    pub const CompilationInfoCallback = *const fn (
+        status: CompilationInfoRequestStatus,
+        compilation_info: ?*const CompilationInfo,
+        userdata1: ?*anyopaque,
+        userdata2: ?*anyopaque,
+    ) callconv(.c) void;
+
+    pub const CompilationInfoCallbackInfo = extern struct {
+        next_in_chain: ?*const ChainedStruct = null,
+
+        // TODO: Revisit this default if/when Instance.waitAny() is implemented.
+        mode: CallbackMode = .allow_process_events,
+
+        callback: CompilationInfoCallback,
+        userdata1: ?*anyopaque = null,
+        userdata2: ?*anyopaque = null,
+    };
+
     // Unimplemented as of wgpu-native v29.0.0.0,
     // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
     // pub inline fn getCompilationInfo(self: *ShaderModule, callback_info: CompilationInfoCallbackInfo) Future {

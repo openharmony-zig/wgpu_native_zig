@@ -7,15 +7,49 @@ pub fn build(b: *std.Build) void {
         "check",
         "Compile the bindings and all target-compatible tests",
     );
+    const audit_step = b.step(
+        "audit",
+        "Compile the binding coverage and ABI audits",
+    );
 
-    if (library.isOhos()) {
-        linkProbe(b, library, check_step);
+    bindingTest(b, library, audit_step);
+    abiTest(b, library, audit_step);
+    check_step.dependOn(audit_step);
+
+    if (library.isOhos() or library.isAndroid() or library.isIos()) {
+        // Rust's legacy x86_64-apple-ios target emits the historical
+        // x86_64-ios Mach-O platform marker. Zig 0.16's linker rejects that
+        // marker for an explicit simulator output, so this target can run the
+        // compile-time audits but not a Zig link probe.
+        if (!library.isIos() or
+            library.target.result.cpu.arch != .x86_64)
+        {
+            linkProbe(b, library, check_step);
+        }
         return;
     }
 
     unitTests(b, library, check_step);
-    abiTest(b, library, check_step);
     computeTests(b, library, check_step);
+}
+
+fn bindingTest(
+    b: *std.Build,
+    library: Library.Result,
+    check_step: *std.Build.Step,
+) void {
+    const test_mod = b.createModule(.{
+        .root_source_file = b.path("tests/bindings.zig"),
+        .target = library.target,
+        .optimize = library.optimize,
+    });
+    test_mod.addImport("binding-audit", bindingAuditModule(b, library));
+    const test_exe = b.addTest(.{
+        .name = "bindings-test",
+        .root_module = test_mod,
+    });
+    library.configureCompile(test_exe);
+    check_step.dependOn(&test_exe.step);
 }
 
 fn abiTest(
@@ -44,27 +78,33 @@ fn unitTests(
     check_step: *std.Build.Step,
 ) void {
     const unit_test_step = b.step("test", "Run unit tests");
-    const test_files = [_][:0]const u8{
-        "src/raw.zig",
-        "src/instance.zig",
-        "src/adapter.zig",
-        "src/pipeline.zig",
-    };
-    comptime var test_names: [test_files.len][:0]const u8 = test_files;
-    comptime for (test_files, 0..) |test_file, index| {
-        test_names[index] = test_file[4..(test_file.len - 4)] ++ "-test";
+    const unit_tests = .{
+        .{ .path = "src/raw.zig", .name = "raw-test" },
+        .{ .path = "src/misc.zig", .name = "misc-test" },
+        .{ .path = "src/async.zig", .name = "async-test" },
+        .{ .path = "src/instance.zig", .name = "instance-test" },
+        .{ .path = "src/adapter.zig", .name = "adapter-test" },
+        .{ .path = "src/buffer.zig", .name = "buffer-test" },
+        .{ .path = "src/device.zig", .name = "device-test" },
+        .{ .path = "src/pipeline.zig", .name = "pipeline-test" },
+        .{ .path = "src/queue.zig", .name = "queue-test" },
+        .{ .path = "tests/lifetimes.zig", .name = "lifetimes-test" },
+        .{ .path = "tests/ownership.zig", .name = "ownership-test" },
     };
 
-    for (test_files, test_names) |test_file, test_name| {
+    inline for (unit_tests) |unit_test| {
         const test_mod = b.createModule(.{
-            .root_source_file = b.path(test_file),
+            .root_source_file = b.path(unit_test.path),
             .target = library.target,
             .optimize = library.optimize,
         });
         test_mod.addImport("wgpu-header", library.wgpu_c_mod);
-        library.linkTestModule(b, test_mod);
+        if (std.mem.startsWith(u8, unit_test.path, "tests/")) {
+            test_mod.addImport("wgpu", library.wgpu_mod);
+        }
+        library.linkTestModule(test_mod);
         const test_exe = b.addTest(.{
-            .name = test_name,
+            .name = unit_test.name,
             .root_module = test_mod,
         });
         library.configureCompile(test_exe);
@@ -135,4 +175,18 @@ fn linkProbe(
     library.configureCompile(probe);
     _ = probe.getEmittedBin();
     check_step.dependOn(&probe.step);
+}
+
+fn bindingAuditModule(
+    b: *std.Build,
+    library: Library.Result,
+) *std.Build.Module {
+    const audit_mod = b.createModule(.{
+        .root_source_file = b.path("src/binding_audit.zig"),
+        .target = library.target,
+        .optimize = library.optimize,
+    });
+    audit_mod.addImport("wgpu-header", library.wgpu_c_mod);
+    audit_mod.addImport("wgpu-wrapper", library.wgpu_mod);
+    return audit_mod;
 }

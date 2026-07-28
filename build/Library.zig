@@ -23,12 +23,24 @@ pub const Result = struct {
         return self.platform.kind == .ohos;
     }
 
+    pub fn isAndroid(self: Result) bool {
+        return self.platform.kind == .android;
+    }
+
+    pub fn isIos(self: Result) bool {
+        return self.target.result.os.tag == .ios;
+    }
+
     pub fn linkModule(
         self: Result,
         b: *std.Build,
         mod: *std.Build.Module,
     ) void {
-        mod.link_libcpp = true;
+        if (self.platform.kind != .apple and
+            self.platform.kind != .android)
+        {
+            mod.link_libcpp = true;
+        }
         Platform.configureModule(
             b,
             self.platform,
@@ -45,10 +57,8 @@ pub const Result = struct {
 
     pub fn linkTestModule(
         self: Result,
-        b: *std.Build,
         mod: *std.Build.Module,
     ) void {
-        self.linkModule(b, mod);
         Platform.configureTest(
             self.platform,
             mod,
@@ -126,7 +136,6 @@ pub fn build(b: *std.Build, options: Options) ?Result {
         .wgpu_mod = wgpu_mod,
         .wgpu_c_mod = wgpu_c_mod,
     };
-    result.linkModule(b, wgpu_mod);
     result.linkModule(b, wgpu_c_mod);
     install(b, artifact);
     return result;

@@ -9,9 +9,6 @@ const U32_MAX = _misc.U32_MAX;
 
 pub const WGPU_ARRAY_LAYER_COUNT_UNDEFINED = U32_MAX;
 pub const WGPU_MIP_LEVEL_COUNT_UNDEFINED = U32_MAX;
-pub const WGPU_COPY_STRIDE_UNDEFINED = U32_MAX;
-
-const Buffer = @import("buffer.zig").Buffer;
 
 pub const TextureFormat = enum(u32) {
     undefined = 0x00000000, // Indicates no value is passed for this argument.
@@ -139,9 +136,6 @@ pub const TextureUsages = struct {
     pub const transient_attachment = @as(TextureUsage, 0x0000000000000020);
 };
 
-// TODO: Like a lot of things in this file, this breaks from the wrapper code convention by having an unneeded prefix ("Texture")
-//       in front of the name, even though "Aspect" is exclusively used in TextureAspect. I've done this because just calling
-//       it "Aspect" seems like it'd confuse people thinking it is an aspect ratio or something, but should it just be "Aspect"?
 pub const TextureAspect = enum(u32) {
     undefined = 0x00000000, // Indicates no value is passed for this argument.
     all = 0x00000001,
@@ -201,8 +195,7 @@ pub const TextureView = opaque {
     }
 };
 
-// TODO: Should this maybe go in sampler.zig instead?
-pub const SampleType = enum(u32) {
+pub const TextureSampleType = enum(u32) {
     // Indicates that this TextureBindingLayout member of its parent BindGroupLayoutEntry is not used.
     binding_not_used = 0x00000000,
 
@@ -235,7 +228,7 @@ pub const TextureBindingViewDimension = extern struct {
 
 pub const TextureBindingLayout = extern struct {
     next_in_chain: ?*const ChainedStruct = null,
-    sample_type: SampleType = SampleType.undefined,
+    sample_type: TextureSampleType = .undefined,
     view_dimension: ViewDimension = ViewDimension.@"2d",
     multisampled: WGPUBool = @intFromBool(false),
 };
@@ -283,7 +276,21 @@ pub const TextureDescriptor = extern struct {
     sample_count: u32 = 1,
     view_format_count: usize = 0,
     view_formats: [*]const TextureFormat = &[_]TextureFormat{},
+
+    /// Returns a descriptor that borrows `view_formats`.
+    pub inline fn withViewFormats(
+        self: TextureDescriptor,
+        view_formats: []const TextureFormat,
+    ) TextureDescriptor {
+        var descriptor = self;
+        descriptor.view_format_count = view_formats.len;
+        descriptor.view_formats = view_formats.ptr;
+        return descriptor;
+    }
 };
+
+/// Borrowed backend-native `id<MTLTexture>` returned by wgpu-native.
+pub const NativeMetalTexture = opaque {};
 
 pub const Texture = opaque {
     pub inline fn createView(self: *Texture, descriptor: ?*const TextureViewDescriptor) ?*TextureView {
@@ -329,30 +336,10 @@ pub const Texture = opaque {
     pub inline fn release(self: *Texture) void {
         raw.call(void, "wgpuTextureRelease", .{self});
     }
-};
 
-pub const Origin3D = extern struct {
-    x: u32 = 0,
-    y: u32 = 0,
-    z: u32 = 0,
-};
-
-pub const TexelCopyTextureInfo = extern struct {
-    texture: *Texture,
-    mip_level: u32 = 0,
-    origin: Origin3D,
-    aspect: TextureAspect = TextureAspect.all,
-};
-
-pub const TexelCopyBufferLayout = extern struct {
-    offset: u64 = 0,
-    bytes_per_row: u32 = WGPU_COPY_STRIDE_UNDEFINED,
-    rows_per_image: u32 = WGPU_COPY_STRIDE_UNDEFINED,
-};
-
-// Seems a little weird to put this in texture.zig,
-// but it seems to have more to do with images/textures than with buffers.
-pub const TexelCopyBufferInfo = extern struct {
-    layout: TexelCopyBufferLayout,
-    buffer: *Buffer,
+    /// Returns a borrowed Metal texture when this texture uses the Metal backend.
+    /// The pointer remains valid only while `self` is alive and must not be released.
+    pub inline fn getNativeMetalTexture(self: *Texture) ?*NativeMetalTexture {
+        return raw.call(?*NativeMetalTexture, "wgpuTextureGetNativeMetalTexture", .{self});
+    }
 };

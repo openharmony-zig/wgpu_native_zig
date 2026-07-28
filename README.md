@@ -1,22 +1,53 @@
 # wgpu_native_zig
+
 Zig bindings for [wgpu-native](https://github.com/gfx-rs/wgpu-native)
 
 Requires Zig 0.16.x.
 
 This package exposes two modules: `wgpu-c` and `wgpu`.
 
-`wgpu-c` is just `wgpu.h` (and by extension `webgpu.h`) run through `translate-c`, so as close to wgpu-native's original C API as is possible in Zig.
+`wgpu-c` is `wgpu.h` (and therefore `webgpu.h`) translated directly by Zig, so it
+tracks wgpu-native's C API without a second handwritten declaration layer.
 
 `wgpu` is a Zig-friendly wrapper over the bindings generated directly from `wgpu.h` and
 `webgpu.h`. The generated declarations are also available through `wgpu.raw`; wrapper
 methods and raw calls therefore share the headers as their single ABI source of truth.
 
+### Binding coverage
+
+The pinned wgpu-native `v29.0.0.0` headers currently declare 226 functions. The
+`wgpu` wrapper exposes every function with a usable v29 implementation, while
+`wgpu.raw` and `wgpu-c` expose all function and type declarations produced by
+`translate-c`. A compile-time audit checks this partition, rejects handwritten
+`extern fn wgpu...` declarations, and fails when a future header update adds an
+unclassified function or type.
+
+The following v29 API groups intentionally remain raw-only because their upstream
+implementations panic, are blocked, or always return an unavailable result:
+
+- `wgpuGetProcAddress` and the currently unimplemented `*SetLabel` functions.
+- Async pipeline creation, shader compilation info, device-lost futures, `waitAny`,
+  WGSL-language feature queries, and global instance-feature enumeration.
+- Buffer map-state and mapped-range copy helpers.
+- External-texture lifecycle functions.
+- Device adapter-info lookup and texture binding-view-dimension lookup.
+- The native Metal command-queue accessor, which always returns null in v29.
+
+Supported wgpu-native extensions are available as regular Zig methods, including
+`Queue.getTimestampPeriod`, graphics-debugger capture control, and the borrowed Metal
+device/texture accessors. Platform-native pointers are optional and must not be released
+by the caller.
+
 ## Adding this package to your build
+
 Add the package to your dependencies, either with:
+
 ```sh
-zig fetch --save https://github.com/bronter/wgpu_native_zig/archive/refs/tags/v7.0.0.tar.gz
+zig fetch --save https://github.com/openharmony-zig/wgpu_native_zig/archive/refs/tags/v7.0.0.tar.gz
 ```
+
 or by manually adding to your `build.zig.zon`:
+
 ```zig
 .{
     // ...other stuff
@@ -24,15 +55,17 @@ or by manually adding to your `build.zig.zon`:
         // ...other dependencies
         .wgpu_native_zig = .{
             // You can either use a commit hash:
-            .url="https://github.com/bronter/wgpu_native_zig/archive/<commit_hash>.tar.gz",
+            .url="https://github.com/openharmony-zig/wgpu_native_zig/archive/<commit_hash>.tar.gz",
             // or a tagged release:
-            // .url = "https://github.com/bronter/wgpu_native_zig/archive/refs/tags/v7.0.0.tar.gz`
+            // .url = "https://github.com/openharmony-zig/wgpu_native_zig/archive/refs/tags/v7.0.0.tar.gz`
             .hash="<dependency hash>"
         }
     }
 }
 ```
+
 Then, in `build.zig` add:
+
 ```zig
     const wgpu_native_dep = b.dependency("wgpu_native_zig", .{});
 
@@ -43,8 +76,10 @@ Then, in `build.zig` add:
 ```
 
 ### Building on Windows
+
 Windows x86_64 has two options for ABI: GNU and MSVC. For i686 and aarch64, only the MSVC option is available.
 If you need to specify the build target, you can do that with:
+
 ```zig
 const target = b.standardTargetOptions(.{
     .default_target = .{
@@ -53,11 +88,15 @@ const target = b.standardTargetOptions(.{
     }
 });
 ```
+
 Or, specify it with your build command. For example, the triangle example in this repository can be run like so:
+
 ```sh
 zig build --build-file build.examples.zig run-triangle-example -Dtarget=x86_64-windows-msvc
 ```
+
 Either way, pass the resolved target to the dependency like so:
+
 ```zig
 const wgpu_native_dep = b.dependency("wgpu_native_zig", .{
   .target = target
@@ -65,6 +104,7 @@ const wgpu_native_dep = b.dependency("wgpu_native_zig", .{
 ```
 
 When using static linking with MSVC, you might encounter duplicate symbol errors. If so, try
+
 ```zig
 if (target.result.abi == .msvc) {
   // "exe" here is the *std.Build.Step.Compile from b.addExecutable() (or b.addTest())
@@ -72,18 +112,23 @@ if (target.result.abi == .msvc) {
   exe.bundle_ubsan_rt = false;
 }
 ```
+
 An example of using `wgpu-native-zig` with static linking on Windows can be found at [wgpu-native-zig-windows-test](https://github.com/bronter/wgpu-native-zig-windows-test).
 
 ### Dynamic linking
+
 Dynamic linking can be made to work, though it is a bit messy to use.
 When you initialize your `wgpu_native_dep`, add the option for dynamic linking like so:
+
 ```zig
 const wgpu_native_dep = b.dependency("wgpu_native_zig", .{
   // Defaults to .static if you don't specify
   .link_mode = .dynamic
 });
 ```
+
 Then add the following with your install step dependencies:
+
 ```zig
 const lib_dir = wgpu_native_dep.namedWriteFiles("lib").getDirectory();
 
@@ -163,14 +208,14 @@ because upstream `wgpu-native` does not publish OpenHarmony archives.
 
 ### Supported artifact targets
 
-| Platform | Architectures / ABIs | Source build | Published prebuilt |
-| --- | --- | --- | --- |
-| Android | arm64-v8a, armeabi-v7a, x86, x86_64 | Yes, with `ANDROID_NDK_HOME` | Yes |
-| iOS | arm64 device, arm64 simulator, x86_64 simulator | Yes, on macOS | Yes |
-| Linux | aarch64, x86_64 (GNU); aarch64, x86_64 (musl) | Yes | GNU targets |
-| macOS | aarch64, x86_64 | Yes, on macOS | Yes |
-| Windows | aarch64/x86/x86_64 MSVC, x86/x86_64 GNU | Yes, on Windows | All except x86 GNU |
-| OpenHarmony | arm64-v8a, armeabi-v7a, x86_64 | Yes, with `OHOS_NDK_HOME` | Local CI artifact |
+| Platform    | Architectures / ABIs                            | Source build                 | Published prebuilt |
+| ----------- | ----------------------------------------------- | ---------------------------- | ------------------ |
+| Android     | arm64-v8a, armeabi-v7a, x86, x86_64             | Yes, with `ANDROID_NDK_HOME` | Yes                |
+| iOS         | arm64 device, arm64 simulator, x86_64 simulator | Yes, on macOS                | Yes                |
+| Linux       | aarch64, x86_64 (GNU); aarch64, x86_64 (musl)   | Yes                          | GNU targets        |
+| macOS       | aarch64, x86_64                                 | Yes, on macOS                | Yes                |
+| Windows     | aarch64/x86/x86_64 MSVC, x86/x86_64 GNU         | Yes, on Windows              | All except x86 GNU |
+| OpenHarmony | arm64-v8a, armeabi-v7a, x86_64                  | Yes, with `OHOS_NDK_HOME`    | Local CI artifact  |
 
 The OpenHarmony commands are:
 
@@ -189,31 +234,36 @@ zig build --build-file build.tests.zig check \
 ```
 
 The target-artifact workflow builds the complete matrix on Linux x86_64/aarch64, macOS
-arm64/Intel, Windows, Android, and OpenHarmony runners. Every artifact prefix contains
-both link modes and the matching headers.
-
+arm64/Intel, Windows, Android, and OpenHarmony runners. Every target runs the
+binding/ABI audit before packaging. Desktop targets compile all wrapper tests, while
+Android, OpenHarmony, and arm64 iOS targets build a Zig link probe. Zig 0.16 cannot link
+the historical `x86_64-apple-ios` Mach-O platform marker as an explicit simulator dylib,
+so that one target runs the binding/ABI audit without the link probe. Every artifact
+prefix contains both link modes and the matching headers.
 
 ## How the `wgpu` module differs from `wgpu-c`
-* Names are shortened to remove redundancy.
-  * For example `wgpu.WGPUSurfaceDescriptor` becomes `wgpu.SurfaceDescriptor`
-* C pointers (`[*c]`) are replaced with more specific pointer types.
-  * For example `[*c]const u8` is replaced with `?[*:0]const u8`.
-* Pointers to opaque structs are made explicit (and only optional when they need to be).
-  * For example `wgpu.WGPUAdapter` from `webgpu.h` would instead be expressed as `*wgpu.Adapter` or `?*wgpu.Adapter`, depending on the context.
-* Methods are expressed as decls inside of structs
-  * For example 
+
+- Names are shortened to remove redundancy.
+  - For example `wgpu.WGPUSurfaceDescriptor` becomes `wgpu.SurfaceDescriptor`
+- C pointers (`[*c]`) are replaced with more specific pointer types.
+  - For example `[*c]const u8` is replaced with `?[*:0]const u8`.
+- Pointers to opaque structs are made explicit (and only optional when they need to be).
+  - For example `wgpu.WGPUAdapter` from `webgpu.h` would instead be expressed as `*wgpu.Adapter` or `?*wgpu.Adapter`, depending on the context.
+- Methods are expressed as decls inside of structs
+  - For example
     ```zig
     wgpu.wgpuInstanceCreateSurface(instance: WGPUInstance, descriptor: [*c]const WGPUSurfaceDescriptor) WGPUSurface
-    ``` 
+    ```
     becomes
     ```zig
     Instance.createSurface(self: *Instance, descriptor: *const SurfaceDescriptor) ?*Surface
     ```
-* Certain asynchronous methods such as requestAdapter and requestDevice are provided with wrapper methods.
-  * For example, requesting an adapter with a callback looks something like
+- Callback-based operations provide synchronous helpers for adapter/device requests,
+  buffer mapping, submitted queue work, and device error scopes.
+  - For example, requesting an adapter with a callback looks something like
     ```zig
     fn handleRequestAdapter(
-        status: RequestAdapterStatus,
+        status: Instance.RequestAdapterStatus,
         adapter: ?*Adapter,
         message: StringView,
         userdata1: ?*anyopaque,
@@ -233,17 +283,16 @@ both link modes and the matching headers.
     }
     var adapter_ptr: ?*Adapter = null;
     var completed = false;
-    const request_adapter_info = RequestAdapterInfo {
+    const request_adapter_info = Instance.RequestAdapterCallbackInfo {
         .callback = handleRequestAdapter,
         .userdata1 = @ptrCast(&adapter_ptr),
         .userdata2 = @ptrCast(&completed),
     }
     const ra_future = instance.requestAdapter(null, request_adapter_info);
 
-    // There is currently no way to use a `Future`,
-    // it's supposed to be passed into `Instance.waitAny()`,
-    // which is unimplemented as of `wgpu_native` v24.0.3.1.
-    _ = ra_future; 
+    // wgpu-native v29 does not implement Instance.waitAny(), so drive
+    // allow_process_events callbacks with Instance.processEvents().
+    _ = ra_future;
 
     instance.processEvents();
     while(!completed) {
@@ -254,54 +303,100 @@ both link modes and the matching headers.
     whereas the non-callback version looks like
     ```zig
     // The wrapper methods use polling, so 200_000_000 is the polling interval in nanoseconds.
-    const response = try instance.requestAdapterSync(io, null, 200_000_000);
+    var response = try instance.requestAdapterSync(allocator, io, null, 200_000_000);
+    defer response.deinit(allocator);
 
     const adapter_ptr: ?*Adapter = switch (response.status) {
-        .success => response.adapter,
+        .success => response.takeAdapter(),
         else => blk: {
-            std.log.err("{s}\n", .{response.message});
+            std.log.err("{s}\n", .{response.message orelse "adapter request failed"});
             break :blk null;
         }
     };
     ```
-* Chained structs are provided with inline functions for constructing them, which come in two forms depending on whether or not the chained struct is likely to always be required.
-  * For required chained structs, you can either write them explicitely:
+    The synchronous responses own their copied callback messages and any returned
+    handle. Call `deinit()` on every response, and use `takeAdapter()` or
+    `takeDevice()` to transfer a successful handle out of it. The other helpers
+    follow the same lifetime model:
+    `Buffer.mapSync()`, `Queue.onSubmittedWorkDoneSync()`, and
+    `Device.popErrorScopeSync()`.
+    If the supplied `Io` is cancelled, the synchronous wrapper finishes draining
+    the native callback before returning the cancellation error, yielding the
+    polling thread between `processEvents()` calls. This is required because
+    wgpu-native v29 has no `waitAny()` implementation and the callback userdata
+    must remain alive until completion.
+- Output structures whose members are allocated by wgpu-native use pointer-based
+  `deinit()` methods. In particular, `SupportedFeatures`, `AdapterInfo`, and
+  `SurfaceCapabilities` clear their owned pointers, counts, and strings after
+  releasing them, so a deferred `deinit()` cannot observe stale members.
+  `SupportedFeatures.slice()` and the `SurfaceCapabilities.*Slice()` accessors
+  expose their pointer/count arrays as bounded read-only slices.
+- `Instance.enumerateAdapters()` allocates an `AdapterList` that owns every returned
+  adapter. Deinitialize the list to release all remaining adapters, or transfer one:
+  ```zig
+  var adapters = try instance.enumerateAdapters(allocator, null);
+  defer adapters.deinit(allocator);
+
+  const adapter = adapters.takeAdapter(0).?;
+  defer adapter.release();
+  ```
+- `SurfaceTexture` owns the texture returned by `Surface.getCurrentTexture()`.
+  Use `defer surface_texture.deinit()` to release it automatically, or call
+  `takeTexture()` to transfer the texture to code that will release it.
+- Wrapper methods use slices where the C API uses a pointer/count pair.
+  `Queue.writeBuffer()` and `Queue.writeTexture()` take byte slices,
+  `setBindGroup()` takes a dynamic-offset slice, and `setImmediates()` takes a
+  byte slice. Buffer mapped-range accessors return bounded byte slices and resolve
+  `WGPU_WHOLE_MAP_SIZE` against the buffer size.
+- ABI-compatible descriptors retain their C pointer/count fields, while `init()`
+  and chainable `withXxx()` helpers accept borrowed slices and synchronize both
+  fields. The slice must remain alive until the native call returns.
+- Chained structs are provided with inline functions for constructing them, which come in two forms depending on whether or not the chained struct is likely to always be required.
+  - For required chained structs, you can either write them explicitely:
     ```zig
-    SurfaceDescriptor{
-        .next_in_chain = @ptrCast(&SurfaceDescriptorFromXlibWindow {
-            .chain = ChainedStruct {
-                .s_type = SType.surface_descriptor_from_xlib_window,
-            },
-            .display = display,
-            .window = window,
-        }),
-        .label = "xlib_surface_descriptor",
+    const source = SurfaceSourceXlibWindow{
+        .display = display,
+        .window = window,
+    };
+    const descriptor = SurfaceDescriptor{
+        .next_in_chain = &source.chain,
+        .label = StringView.fromSlice("xlib_surface_descriptor"),
     };
     ```
-    or use a function to construct them:
+    or use a function to construct the root descriptor:
     ```zig
-    // Here the descriptors from SurfaceDescriptor and SurfaceDescriptorFromXlibWindow have been merged,
-    // so just pass in an anonymous struct with the things that you need; default values will take care of the rest.
-    surfaceDescriptorFromXlibWindow(.{
-        .label = "xlib_surface_descriptor",
+    const source = SurfaceSourceXlibWindow{
         .display = display,
-        .window = window
-    });
+        .window = window,
+    };
+    const descriptor = surfaceDescriptorFromXlibWindow(
+        &source,
+        "xlib_surface_descriptor",
+    );
     ```
-  * For optional chained structs, you can either write them explicitely like in the example above, or you can use a method of the parent struct instance to add them, for example:
+  - For optional chained structs, create the extension separately and attach it
+    with `withExtras()`:
     ```zig
-    &(SurfaceConfiguration {
-      .device = device,
-      // other stuff
-    }).withDesiredMaxFrameLatency(2);
+    const extras = SurfaceConfigurationExtras{
+        .desired_maximum_frame_latency = 2,
+    };
+    const configuration = (SurfaceConfiguration{
+        .device = device,
+        // other fields
+    }).withExtras(&extras);
     ```
-* `WGPUBool` is replaced with `bool` whenever possible.
-  * This means it is replaced with `bool` in wrapper method parameters and return values, but not in structs that preserve the C ABI.
+    The source or extras value must remain alive until the native API call that
+    consumes the descriptor has returned.
+- `WGPUBool` is replaced with `bool` whenever possible.
+  - This means it is replaced with `bool` in wrapper method parameters and return values, but not in structs that preserve the C ABI.
+- Callback types that belong to one handle are scoped under that handle. For example,
+  use `Instance.RequestAdapterCallbackInfo`, `Adapter.RequestDeviceCallbackInfo`,
+  `Buffer.MapCallbackInfo`, and `Device.PopErrorScopeCallbackInfo`.
+- Wrapper names retain meaningful WebGPU prefixes. For example,
+  `WGPUTextureSampleType` is exposed as `TextureSampleType`.
 
 ## TODO
-* Cleanup/organization: 
-  * If types are only tied to a specific opaque struct, they should be decls inside that struct.
-  * There are many things that seem to be in the wrong file.
-    * For example a lot of what is in `pipeline.zig` is actually only used by `Device`, and should probably be in `device.zig` instead.
-  * Since pointers to opaque structs are made explicit, it would be more consistent if pointers to callback functions are explicit as well.
-* Port [wgpu-native-examples](https://github.com/samdauwe/webgpu-native-examples) using wrapper code, as a basic form of documentation.
+
+- Expand headless coverage for limit queries, textures, samplers, query sets, and
+  render bundles.
+- Port [wgpu-native-examples](https://github.com/samdauwe/webgpu-native-examples) using wrapper code, as a basic form of documentation.

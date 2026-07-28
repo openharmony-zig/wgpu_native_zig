@@ -1,4 +1,8 @@
-const WGPUBool = @import("misc.zig").WGPUBool;
+const std = @import("std");
+
+const _misc = @import("misc.zig");
+const StringView = _misc.StringView;
+const WGPUBool = _misc.WGPUBool;
 
 //
 // The callback mode controls how a callback for an asynchronous operation may be fired.
@@ -64,3 +68,93 @@ pub const FutureWaitInfo = extern struct {
     // Whether or not the future completed.
     completed: WGPUBool,
 };
+
+/// Copies a callback StringView whose storage is owned by the native
+/// implementation. The caller owns the returned slice.
+pub fn copyCallbackMessage(
+    allocator: std.mem.Allocator,
+    message: StringView,
+) std.mem.Allocator.Error!?[]const u8 {
+    const slice = message.toSlice() orelse return null;
+    return try allocator.dupe(u8, slice);
+}
+
+/// Drives an `allow_process_events` callback to completion.
+///
+/// If `io` is cancelled, the error is returned only after the callback has
+/// completed. This keeps callback userdata valid for its full native lifetime.
+/// The drain phase yields the current thread between event-processing calls so
+/// cancellation does not turn into a busy loop.
+pub fn waitForCallback(
+    event_source: anytype,
+    completed: *const bool,
+    io: std.Io,
+    polling_interval_nanoseconds: u64,
+) std.Io.Cancelable!void {
+    var cancellation_error: ?std.Io.Cancelable = null;
+
+    event_source.processEvents();
+    while (!completed.*) {
+        if (cancellation_error == null) {
+            io.sleep(.fromNanoseconds(polling_interval_nanoseconds), .awake) catch |err| {
+                cancellation_error = err;
+            };
+        } else {
+            std.Thread.yield() catch std.atomic.spinLoopHint();
+        }
+        event_source.processEvents();
+    }
+
+    if (cancellation_error) |err| return err;
+}
+
+test "waitForCallback drives events until completion" {
+    const testing = std.testing;
+
+    var completed = false;
+    var event_source = TestEventSource{ .completed = &completed };
+
+    try waitForCallback(&event_source, &completed, testing.io, 0);
+
+    try testing.expect(completed);
+    try testing.expectEqual(2, event_source.process_count);
+}
+
+test "waitForCallback drains events before returning cancellation" {
+    const testing = std.testing;
+
+    var completed = false;
+    var event_source = TestEventSource{
+        .completed = &completed,
+        .complete_after = 3,
+    };
+    var vtable = testing.io.vtable.*;
+    vtable.sleep = cancelSleep;
+    const canceled_io = std.Io{
+        .userdata = null,
+        .vtable = &vtable,
+    };
+
+    try testing.expectError(
+        error.Canceled,
+        waitForCallback(&event_source, &completed, canceled_io, 0),
+    );
+
+    try testing.expect(completed);
+    try testing.expectEqual(3, event_source.process_count);
+}
+
+const TestEventSource = struct {
+    completed: *bool,
+    process_count: usize = 0,
+    complete_after: usize = 2,
+
+    fn processEvents(self: *TestEventSource) void {
+        self.process_count += 1;
+        if (self.process_count == self.complete_after) self.completed.* = true;
+    }
+};
+
+fn cancelSleep(_: ?*anyopaque, _: std.Io.Timeout) std.Io.Cancelable!void {
+    return error.Canceled;
+}

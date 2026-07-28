@@ -10,26 +10,22 @@ const output_extent = wgpu.Extent3D{
 const output_bytes_per_row = 4 * output_extent.width;
 const output_size = output_bytes_per_row * output_extent.height;
 
-fn handleBufferMap(status: wgpu.MapAsyncStatus, _: wgpu.StringView, userdata1: ?*anyopaque, _: ?*anyopaque) callconv(.c) void {
-    std.log.info("buffer_map status={x:.8}\n", .{@intFromEnum(status)});
-    const complete: *bool = @ptrCast(@alignCast(userdata1));
-    complete.* = true;
-}
-
 // Based off of headless triangle example from https://github.com/eliemichel/LearnWebGPU-Code/tree/step030-headless
 
 pub fn main(init: std.process.Init) !void {
     const instance = wgpu.Instance.create(null).?;
     defer instance.release();
 
-    const adapter_request = try instance.requestAdapterSync(init.io, &wgpu.RequestAdapterOptions{}, 0);
+    var adapter_request = try instance.requestAdapterSync(init.gpa, init.io, &wgpu.RequestAdapterOptions{}, 0);
+    defer adapter_request.deinit(init.gpa);
     const adapter = switch (adapter_request.status) {
-        .success => adapter_request.adapter.?,
+        .success => adapter_request.takeAdapter().?,
         else => return error.NoAdapter,
     };
     defer adapter.release();
 
-    const device_request = try adapter.requestDeviceSync(
+    var device_request = try adapter.requestDeviceSync(
+        init.gpa,
         init.io,
         instance,
         &wgpu.DeviceDescriptor{
@@ -37,8 +33,9 @@ pub fn main(init: std.process.Init) !void {
         },
         0,
     );
+    defer device_request.deinit(init.gpa);
     const device = switch (device_request.status) {
-        .success => device_request.device.?,
+        .success => device_request.takeDevice().?,
         else => return error.NoDevice,
     };
     defer device.release();
@@ -62,9 +59,11 @@ pub fn main(init: std.process.Init) !void {
         .array_layer_count = 1,
     }).?;
 
-    const shader_module = device.createShaderModule(&wgpu.shaderModuleWGSLDescriptor(.{
-        .code = @embedFile("./shader.wgsl"),
-    })).?;
+    const shader_source = wgpu.ShaderSourceWGSL{
+        .code = wgpu.StringView.fromSlice(@embedFile("./shader.wgsl")),
+    };
+    const shader_descriptor = wgpu.shaderModuleWGSLDescriptor(&shader_source, "triangle.wgsl");
+    const shader_module = device.createShaderModule(&shader_descriptor).?;
     defer shader_module.release();
 
     const staging_buffer = device.createBuffer(&wgpu.BufferDescriptor{
@@ -92,6 +91,8 @@ pub fn main(init: std.process.Init) !void {
             },
         },
     };
+    var fragment_state = wgpu.FragmentState.init(shader_module, color_targets);
+    fragment_state.entry_point = wgpu.StringView.fromSlice("fs_main");
 
     const pipeline = device.createRenderPipeline(&wgpu.RenderPipelineDescriptor{
         .vertex = wgpu.VertexState{
@@ -99,7 +100,7 @@ pub fn main(init: std.process.Init) !void {
             .entry_point = wgpu.StringView.fromSlice("vs_main"),
         },
         .primitive = wgpu.PrimitiveState{},
-        .fragment = &wgpu.FragmentState{ .module = shader_module, .entry_point = wgpu.StringView.fromSlice("fs_main"), .target_count = color_targets.len, .targets = color_targets.ptr },
+        .fragment = &fragment_state,
         .multisample = wgpu.MultisampleState{},
     }).?;
     defer pipeline.release();
@@ -116,10 +117,8 @@ pub fn main(init: std.process.Init) !void {
             .view = next_texture,
             .clear_value = wgpu.Color{},
         }};
-        const render_pass = encoder.beginRenderPass(&wgpu.RenderPassDescriptor{
-            .color_attachment_count = color_attachments.len,
-            .color_attachments = color_attachments.ptr,
-        }).?;
+        const render_pass_descriptor = wgpu.RenderPassDescriptor.init(color_attachments);
+        const render_pass = encoder.beginRenderPass(&render_pass_descriptor).?;
 
         render_pass.setPipeline(pipeline);
         render_pass.draw(3, 1, 0, 0);
@@ -152,21 +151,21 @@ pub fn main(init: std.process.Init) !void {
 
         queue.submit(&[_]*const wgpu.CommandBuffer{command_buffer});
 
-        var buffer_map_complete = false;
-        _ = staging_buffer.mapAsync(wgpu.MapModes.read, 0, output_size, wgpu.BufferMapCallbackInfo{
-            .callback = handleBufferMap,
-            .userdata1 = @ptrCast(&buffer_map_complete),
-        });
-        instance.processEvents();
-        while (!buffer_map_complete) {
-            instance.processEvents();
-        }
-        // _ = device.poll(true, null);
+        var map_response = try staging_buffer.mapSync(
+            init.gpa,
+            init.io,
+            instance,
+            wgpu.Buffer.MapModes.read,
+            0,
+            output_size,
+            0,
+        );
+        defer map_response.deinit(init.gpa);
+        if (map_response.status != .success) return error.BufferMapFailed;
 
-        const buf: [*]u8 = @ptrCast(@alignCast(staging_buffer.getMappedRange(0, output_size).?));
+        const output = staging_buffer.getConstMappedRange(0, output_size).?;
         defer staging_buffer.unmap();
 
-        const output = buf[0..output_size];
         try bmp.write24BitBMP(init.io, "examples/output/triangle.bmp", output_extent.width, output_extent.height, output);
     }
 }

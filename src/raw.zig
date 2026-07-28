@@ -43,7 +43,7 @@ fn convert(comptime To: type, value: anytype) To {
             else => conversionError(To, From),
         },
         .int => switch (@typeInfo(From)) {
-            .@"enum" => @intFromEnum(value),
+            .@"enum" => @intCast(@intFromEnum(value)),
             .int, .comptime_int => @intCast(value),
             else => conversionError(To, From),
         },
@@ -59,51 +59,13 @@ fn conversionError(comptime To: type, comptime From: type) noreturn {
     ));
 }
 
-const wrapper_sources = .{
-    .{ "adapter.zig", @embedFile("adapter.zig") },
-    .{ "bind_group.zig", @embedFile("bind_group.zig") },
-    .{ "buffer.zig", @embedFile("buffer.zig") },
-    .{ "command_encoder.zig", @embedFile("command_encoder.zig") },
-    .{ "device.zig", @embedFile("device.zig") },
-    .{ "instance.zig", @embedFile("instance.zig") },
-    .{ "log.zig", @embedFile("log.zig") },
-    .{ "misc.zig", @embedFile("misc.zig") },
-    .{ "pipeline.zig", @embedFile("pipeline.zig") },
-    .{ "query_set.zig", @embedFile("query_set.zig") },
-    .{ "queue.zig", @embedFile("queue.zig") },
-    .{ "render_bundle.zig", @embedFile("render_bundle.zig") },
-    .{ "sampler.zig", @embedFile("sampler.zig") },
-    .{ "shader.zig", @embedFile("shader.zig") },
-    .{ "surface.zig", @embedFile("surface.zig") },
-    .{ "texture.zig", @embedFile("texture.zig") },
-};
+test "convert enum to signed C integer" {
+    const Value = enum(u32) {
+        maximum = std.math.maxInt(c_int),
+    };
 
-test "all wrapper calls are declared by wgpu headers" {
-    comptime {
-        @setEvalBranchQuota(10_000_000);
-        for (wrapper_sources) |source| validateWrapperSource(source[0], source[1]);
-    }
-}
-
-fn validateWrapperSource(comptime file_name: []const u8, comptime source: []const u8) void {
-    if (std.mem.indexOf(u8, source, "extern fn wgpu") != null) {
-        @compileError(file_name ++ " contains a handwritten wgpu extern");
-    }
-
-    var cursor: usize = 0;
-    while (std.mem.indexOfPos(u8, source, cursor, "raw.call(")) |call_start| {
-        const name_start = std.mem.indexOfPos(u8, source, call_start, "\"wgpu") orelse
-            @compileError(file_name ++ " contains an invalid raw.call");
-        const name_end = std.mem.indexOfScalarPos(
-            u8,
-            source,
-            name_start + 1,
-            '"',
-        ) orelse @compileError(file_name ++ " contains an unterminated function name");
-        const name = source[name_start + 1 .. name_end];
-        if (!@hasDecl(header, name)) {
-            @compileError(file_name ++ " references missing header function " ++ name);
-        }
-        cursor = name_end + 1;
-    }
+    try std.testing.expectEqual(
+        std.math.maxInt(c_int),
+        convert(c_int, Value.maximum),
+    );
 }

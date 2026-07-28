@@ -10,6 +10,15 @@ pub const WGPU_WHOLE_SIZE = U64_MAX;
 pub const WGPUBool = u32;
 pub const WGPUFlags = u64;
 
+pub fn sliceFromOptional(
+    comptime T: type,
+    items: ?[*]const T,
+    count: usize,
+) []const T {
+    if (count == 0) return &.{};
+    return items.?[0..count];
+}
+
 // Status code returned (synchronously) from many operations.
 // Generally indicates an invalid input like an unknown enum value or OutStructChainError.
 pub const Status = enum(u32) {
@@ -21,77 +30,6 @@ pub const OptionalBool = enum(u32) {
     false = 0x00000000,
     true = 0x00000001,
     undefined = 0x00000002,
-};
-
-// Used by both device and adapter
-// FeatureName and Limits are clearly related
-// but idk if they should go in device.zig, adapter.zig, or their own separate file.
-// So they're going in the "miscellaneous" pile for now.
-pub const FeatureName = enum(u32) {
-    core_features_and_limits = 0x00000001,
-    depth_clip_control = 0x00000002,
-    depth32_float_stencil8 = 0x00000003,
-    texture_compression_bc = 0x00000004,
-    texture_compression_bc_sliced_3d = 0x00000005,
-    texture_compression_etc2 = 0x00000006,
-    texture_compression_astc = 0x00000007,
-    texture_compression_astc_sliced_3d = 0x00000008,
-    timestamp_query = 0x00000009,
-    indirect_first_instance = 0x0000000A,
-    shader_f16 = 0x0000000B,
-    rg11b10_ufloat_renderable = 0x0000000C,
-    bgra8_unorm_storage = 0x0000000D,
-    float32_filterable = 0x0000000E,
-    float32_blendable = 0x0000000F,
-    clip_distances = 0x00000010,
-    dual_source_blending = 0x00000011,
-    subgroups = 0x00000012,
-    texture_formats_tier_1 = 0x00000013,
-    texture_formats_tier_2 = 0x00000014,
-    primitive_index = 0x00000015,
-    texture_component_swizzle = 0x00000016,
-
-    // wgpu-native extras
-    immediates = 0x00030001,
-    texture_adapter_specific_format_features = 0x00030002,
-    multi_draw_indirect_count = 0x00030004,
-    vertex_writable_storage = 0x00030005,
-    texture_binding_array = 0x00030006,
-    sampled_texture_and_storage_buffer_array_non_uniform_indexing = 0x00030007,
-    pipeline_statistics_query = 0x00030008,
-    storage_resource_binding_array = 0x00030009,
-    partially_bound_binding_array = 0x0003000A,
-    texture_format_16bit_norm = 0x0003000B,
-    texture_compression_astc_hdr = 0x0003000C,
-    mappable_primary_buffers = 0x0003000E,
-    buffer_binding_array = 0x0003000F,
-    uniform_buffer_and_storage_texture_array_non_uniform_indexing = 0x00030010,
-    polygon_mode_line = 0x00030013,
-    polygon_mode_point = 0x00030014,
-    conservative_rasterization = 0x00030015,
-    spirv_shader_passthrough = 0x00030017,
-    vertex_attribute_64bit = 0x00030019,
-    texture_format_nv12 = 0x0003001A,
-    ray_query = 0x0003001C,
-    shader_f64 = 0x0003001D,
-    shader_i16 = 0x0003001E,
-    shader_early_depth_test = 0x00030020,
-    subgroup = 0x00030021,
-    subgroup_vertex = 0x00030022,
-    subgroup_barrier = 0x00030023,
-    timestamp_query_inside_encoders = 0x00030024,
-    timestamp_query_inside_passes = 0x00030025,
-    shader_int64 = 0x00030026,
-};
-
-pub const SupportedFeatures = extern struct {
-    feature_count: usize,
-    features: [*]const FeatureName,
-
-    // Frees array members of SupportedFeatures which were allocated by the API.
-    pub inline fn freeMembers(self: SupportedFeatures) void {
-        raw.call(void, "wgpuSupportedFeaturesFreeMembers", .{self});
-    }
 };
 
 pub const IndexFormat = enum(u32) {
@@ -149,17 +87,28 @@ pub const StringView = extern struct {
     }
 
     pub fn toSlice(self: StringView) ?[]const u8 {
-        const data = self.data orelse return null;
+        const data = self.data orelse return nullDataToSlice(self.length) catch {
+            std.debug.panic(
+                "invalid StringView: null data with non-zero length {d}",
+                .{self.length},
+            );
+        };
 
-        // test if null-terminated string
         if (self.length == WGPU_STRLEN) {
-            // Returns the slice up to, but not including, the null terminator
-            // I feel like there should be a builtin for this or something, but I don't see one in the docs.
-            // Maybe there's a simpler way to do it and I'm just overthinking it.
             return std.mem.sliceTo(@as([*:0]const u8, @ptrCast(data)), 0);
         }
 
         return data[0..self.length];
+    }
+
+    const NullDataError = error{InvalidLength};
+
+    fn nullDataToSlice(length: usize) NullDataError!?[]const u8 {
+        return switch (length) {
+            WGPU_STRLEN => null,
+            0 => "",
+            else => error.InvalidLength,
+        };
     }
 };
 
@@ -191,11 +140,24 @@ test "slice can be constructed from null-terminated StringView" {
     try std.testing.expectEqualSlices(u8, "test", sv.toSlice().?);
 }
 
-test "StringView.toSlice returns null if data is null" {
+test "StringView.toSlice distinguishes null from an empty string" {
+    const empty = StringView{
+        .data = null,
+        .length = 0,
+    };
+    try std.testing.expectEqualSlices(u8, "", empty.toSlice().?);
+
     const sv = StringView{
         .data = null,
         .length = WGPU_STRLEN,
     };
 
     try std.testing.expectEqual(null, sv.toSlice());
+}
+
+test "StringView rejects null data with a non-zero explicit length" {
+    try std.testing.expectError(
+        error.InvalidLength,
+        StringView.nullDataToSlice(1),
+    );
 }

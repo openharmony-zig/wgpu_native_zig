@@ -7,10 +7,12 @@ const ChainedStructOut = _chained_struct.ChainedStructOut;
 
 const _misc = @import("misc.zig");
 const WGPUBool = _misc.WGPUBool;
-const FeatureName = _misc.FeatureName;
 const StringView = _misc.StringView;
 const Status = _misc.Status;
-const SupportedFeatures = _misc.SupportedFeatures;
+
+const _feature = @import("feature.zig");
+const FeatureName = _feature.FeatureName;
+const SupportedFeatures = _feature.SupportedFeatures;
 
 const Limits = @import("limits.zig").Limits;
 
@@ -21,10 +23,6 @@ const Instance = @import("instance.zig").Instance;
 const _device = @import("device.zig");
 const Device = _device.Device;
 const DeviceDescriptor = _device.DeviceDescriptor;
-const RequestDeviceCallback = _device.RequestDeviceCallback;
-const RequestDeviceCallbackInfo = _device.RequestDeviceCallbackInfo;
-const RequestDeviceStatus = _device.RequestDeviceStatus;
-const RequestDeviceResponse = _device.RequestDeviceResponse;
 
 const _async = @import("async.zig");
 const CallbackMode = _async.CallbackMode;
@@ -41,6 +39,7 @@ pub const AdapterType = enum(u32) {
     integrated_gpu = 0x00000002,
     cpu = 0x00000003,
     unknown = 0x00000004,
+    _,
 };
 
 pub const BackendType = enum(u32) {
@@ -93,58 +92,82 @@ pub const RequestAdapterWebXROptions = extern struct {
     xr_compatible: WGPUBool = @intFromBool(false),
 };
 
-pub const RequestAdapterStatus = enum(u32) {
-    success = 0x00000001,
-    callback_cancelled = 0x00000002,
-    unavailable = 0x00000003,
-    @"error" = 0x00000004,
-};
-
-pub const RequestAdapterCallbackInfo = extern struct {
-    next_in_chain: ?*ChainedStruct = null,
-
-    // TODO: Revisit this default if/when Instance.waitAny() is implemented.
-    mode: CallbackMode = CallbackMode.allow_process_events,
-
-    callback: RequestAdapterCallback,
-    userdata1: ?*anyopaque = null,
-    userdata2: ?*anyopaque = null,
-};
-
-// TODO: This should maybe be relocated to instance.zig; it is only used there.
-pub const RequestAdapterCallback = *const fn (
-    status: RequestAdapterStatus,
-    adapter: ?*Adapter,
-    message: StringView,
-    userdata1: ?*anyopaque,
-    userdata2: ?*anyopaque,
-) callconv(.c) void;
-
-pub const RequestAdapterResponse = struct {
-    status: RequestAdapterStatus,
-    message: ?[]const u8,
-    adapter: ?*Adapter,
-};
-
 pub const AdapterInfo = extern struct {
     next_in_chain: ?*ChainedStructOut = null,
-    vendor: StringView,
-    architecture: StringView,
-    device: StringView,
-    description: StringView,
-    backend_type: BackendType,
-    adapter_type: AdapterType,
-    vendor_id: u32,
-    device_id: u32,
-    subgroup_min_size: u32,
-    subgroup_max_size: u32,
+    vendor: StringView = .{},
+    architecture: StringView = .{},
+    device: StringView = .{},
+    description: StringView = .{},
+    backend_type: BackendType = .undefined,
+    adapter_type: AdapterType = @enumFromInt(0),
+    vendor_id: u32 = 0,
+    device_id: u32 = 0,
+    subgroup_min_size: u32 = 0,
+    subgroup_max_size: u32 = 0,
 
-    pub inline fn freeMembers(self: AdapterInfo) void {
-        raw.call(void, "wgpuAdapterInfoFreeMembers", .{self});
+    pub inline fn deinit(self: *AdapterInfo) void {
+        raw.call(void, "wgpuAdapterInfoFreeMembers", .{self.*});
+        self.vendor = .{};
+        self.architecture = .{};
+        self.device = .{};
+        self.description = .{};
     }
 };
 
 pub const Adapter = opaque {
+    pub const RequestDeviceStatus = enum(u32) {
+        success = 0x00000001,
+        callback_cancelled = 0x00000002,
+        @"error" = 0x00000003,
+    };
+
+    pub const RequestDeviceCallback = *const fn (
+        status: RequestDeviceStatus,
+        device: ?*Device,
+        message: StringView,
+        userdata1: ?*anyopaque,
+        userdata2: ?*anyopaque,
+    ) callconv(.c) void;
+
+    pub const RequestDeviceCallbackInfo = extern struct {
+        next_in_chain: ?*ChainedStruct = null,
+
+        // TODO: Revisit this default if/when Instance.waitAny() is implemented.
+        mode: CallbackMode = .allow_process_events,
+
+        callback: RequestDeviceCallback,
+        userdata1: ?*anyopaque = null,
+        userdata2: ?*anyopaque = null,
+    };
+
+    pub const RequestDeviceResponse = struct {
+        status: RequestDeviceStatus,
+        message: ?[]const u8,
+        device: ?*Device,
+
+        pub fn deinit(self: *RequestDeviceResponse, allocator: std.mem.Allocator) void {
+            if (self.message) |message| allocator.free(message);
+            if (self.device) |device| device.release();
+            self.message = null;
+            self.device = null;
+        }
+
+        pub fn takeDevice(self: *RequestDeviceResponse) ?*Device {
+            const device = self.device;
+            self.device = null;
+            return device;
+        }
+    };
+
+    pub const RequestDeviceSyncError = std.Io.Cancelable || std.mem.Allocator.Error;
+
+    const RequestDeviceSyncState = struct {
+        allocator: std.mem.Allocator,
+        response: RequestDeviceResponse = undefined,
+        message_error: ?std.mem.Allocator.Error = null,
+        completed: bool = false,
+    };
+
     pub inline fn getFeatures(self: *Adapter, features: *SupportedFeatures) void {
         raw.call(void, "wgpuAdapterGetFeatures", .{ self, features });
     }
@@ -158,46 +181,63 @@ pub const Adapter = opaque {
         return raw.call(WGPUBool, "wgpuAdapterHasFeature", .{ self, feature }) != 0;
     }
 
-    fn defaultDeviceCallback(status: RequestDeviceStatus, device: ?*Device, message: StringView, userdata1: ?*anyopaque, userdata2: ?*anyopaque) callconv(.c) void {
-        const ud_response: *RequestDeviceResponse = @ptrCast(@alignCast(userdata1));
-        ud_response.* = RequestDeviceResponse{
+    fn defaultDeviceCallback(status: RequestDeviceStatus, device: ?*Device, message: StringView, userdata1: ?*anyopaque, _: ?*anyopaque) callconv(.c) void {
+        const state: *RequestDeviceSyncState = @ptrCast(@alignCast(userdata1));
+        state.response = .{
             .status = status,
-            .message = message.toSlice(),
+            .message = null,
             .device = device,
         };
-
-        const completed: *bool = @ptrCast(@alignCast(userdata2));
-        completed.* = true;
+        state.response.message = _async.copyCallbackMessage(
+            state.allocator,
+            message,
+        ) catch |err| {
+            state.message_error = err;
+            state.completed = true;
+            return;
+        };
+        state.completed = true;
     }
 
-    // This is a synchronous wrapper that handles asynchronous (callback) logic.
-    // It uses polling to see when the request has been fulfilled, so needs a polling interval parameter.
+    // This is a synchronous wrapper that handles asynchronous (callback) logic. The returned
+    // response owns its message and device until deinit() or takeDevice() is called.
     pub fn requestDeviceSync(
         self: *Adapter,
+        allocator: std.mem.Allocator,
         io: std.Io,
         instance: *Instance,
         descriptor: ?*const DeviceDescriptor,
         polling_interval_nanoseconds: u64,
-    ) std.Io.Cancelable!RequestDeviceResponse {
-        var response: RequestDeviceResponse = undefined;
-        var completed = false;
+    ) RequestDeviceSyncError!RequestDeviceResponse {
+        var state = RequestDeviceSyncState{ .allocator = allocator };
         const callback_info = RequestDeviceCallbackInfo{
             .callback = defaultDeviceCallback,
-            .userdata1 = @ptrCast(&response),
-            .userdata2 = @ptrCast(&completed),
+            .userdata1 = @ptrCast(&state),
         };
         const device_future = raw.call(Future, "wgpuAdapterRequestDevice", .{ self, descriptor, callback_info });
 
         // TODO: Revisit once Instance.waitAny() is implemented in wgpu-native,
         //       it takes in futures and returns when one of them completes.
         _ = device_future;
-        instance.processEvents();
-        while (!completed) {
-            try io.sleep(.fromNanoseconds(polling_interval_nanoseconds), .awake);
-            instance.processEvents();
-        }
+        var wait_error: ?std.Io.Cancelable = null;
+        _async.waitForCallback(
+            instance,
+            &state.completed,
+            io,
+            polling_interval_nanoseconds,
+        ) catch |err| {
+            wait_error = err;
+        };
 
-        return response;
+        if (state.message_error) |err| {
+            state.response.deinit(allocator);
+            return err;
+        }
+        if (wait_error) |err| {
+            state.response.deinit(allocator);
+            return err;
+        }
+        return state.response;
     }
 
     pub inline fn requestDevice(self: *Adapter, descriptor: ?*const DeviceDescriptor, callback_info: RequestDeviceCallbackInfo) Future {
@@ -216,19 +256,59 @@ test "can request device" {
 
     const instance = Instance.create(null).?;
     defer instance.release();
-    const adapter_response = try instance.requestAdapterSync(std.testing.io, null, 200_000_000);
+    var adapter_response = try instance.requestAdapterSync(testing.allocator, testing.io, null, 200_000_000);
+    defer adapter_response.deinit(testing.allocator);
     const adapter: ?*Adapter = switch (adapter_response.status) {
-        .success => adapter_response.adapter,
+        .success => adapter_response.takeAdapter(),
         else => null,
     };
     if (adapter == null) return error.SkipZigTest;
     defer adapter.?.release();
-    const device_response = try adapter.?.requestDeviceSync(std.testing.io, instance, null, 200_000_000);
+
+    var features = SupportedFeatures{};
+    adapter.?.getFeatures(&features);
+    defer features.deinit();
+    try testing.expect(features.feature_count == 0 or features.features != null);
+    features.deinit();
+    try testing.expectEqual(0, features.feature_count);
+    try testing.expectEqual(null, features.features);
+
+    var info = AdapterInfo{};
+    const info_status = adapter.?.getInfo(&info);
+    defer info.deinit();
+    try testing.expectEqual(Status.success, info_status);
+    info.deinit();
+    try testing.expectEqual(null, info.vendor.toSlice());
+    try testing.expectEqual(null, info.architecture.toSlice());
+    try testing.expectEqual(null, info.device.toSlice());
+    try testing.expectEqual(null, info.description.toSlice());
+
+    var device_response = try adapter.?.requestDeviceSync(testing.allocator, testing.io, instance, null, 200_000_000);
+    defer device_response.deinit(testing.allocator);
     const device: ?*Device = switch (device_response.status) {
-        .success => device_response.device,
+        .success => device_response.takeDevice(),
         else => null,
     };
     if (device == null) return error.SkipZigTest;
     defer device.?.release();
     try testing.expect(device != null);
+}
+
+test "synchronous device callback copies its message" {
+    const testing = @import("std").testing;
+
+    var callback_message = [_]u8{ 'o', 'l', 'd' };
+    var state = Adapter.RequestDeviceSyncState{ .allocator = testing.allocator };
+    Adapter.defaultDeviceCallback(
+        .@"error",
+        null,
+        StringView.fromSlice(&callback_message),
+        @ptrCast(&state),
+        null,
+    );
+    defer state.response.deinit(testing.allocator);
+
+    callback_message[0] = 'n';
+    try testing.expect(state.completed);
+    try testing.expectEqualStrings("old", state.response.message.?);
 }

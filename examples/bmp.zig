@@ -1,6 +1,16 @@
 const std = @import("std");
 
-pub fn write24BitBMP(io: std.Io, file_name: []const u8, comptime width: u32, comptime height: u32, bgra_data: *[width * height * 4]u8) !void {
+pub fn write24BitBMP(
+    io: std.Io,
+    file_name: []const u8,
+    comptime width: u32,
+    comptime height: u32,
+    bgra_data: []const u8,
+) !void {
+    if (bgra_data.len != width * height * 4) {
+        return error.InvalidImageDataLength;
+    }
+
     const file = try std.Io.Dir.cwd().createFile(io, file_name, .{});
     defer file.close(io);
 

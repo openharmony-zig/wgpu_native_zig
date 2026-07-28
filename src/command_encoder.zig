@@ -8,10 +8,13 @@ const SType = _chained_struct.SType;
 const Buffer = @import("buffer.zig").Buffer;
 const QuerySet = @import("query_set.zig").QuerySet;
 
+const _copy = @import("copy.zig");
+const TexelCopyBufferInfo = _copy.TexelCopyBufferInfo;
+const TexelCopyTextureInfo = _copy.TexelCopyTextureInfo;
+
 const _texture = @import("texture.zig");
+const TextureFormat = _texture.TextureFormat;
 const TextureView = _texture.TextureView;
-const TexelCopyBufferInfo = _texture.TexelCopyBufferInfo;
-const TexelCopyTextureInfo = _texture.TexelCopyTextureInfo;
 const Extent3D = _texture.Extent3D;
 
 const _misc = @import("misc.zig");
@@ -26,10 +29,110 @@ const _pipeline = @import("pipeline.zig");
 const ComputePipeline = _pipeline.ComputePipeline;
 const RenderPipeline = _pipeline.RenderPipeline;
 
-const RenderBundle = @import("render_bundle.zig").RenderBundle;
+const _render_bundle = @import("render_bundle.zig");
+const RenderBundleDescriptor = _render_bundle.RenderBundleDescriptor;
+const RenderBundle = _render_bundle.RenderBundle;
 
 pub const WGPU_DEPTH_SLICE_UNDEFINED = U32_MAX;
 pub const WGPU_QUERY_SET_INDEX_UNDEFINED = U32_MAX;
+
+pub const RenderBundleEncoderDescriptor = extern struct {
+    next_in_chain: ?*const ChainedStruct = null,
+    label: StringView = .{},
+    color_format_count: usize,
+    color_formats: [*]const TextureFormat,
+    depth_stencil_format: TextureFormat = .undefined,
+    sample_count: u32 = 1,
+    depth_read_only: WGPUBool = @intFromBool(false),
+    stencil_read_only: WGPUBool = @intFromBool(false),
+
+    /// Initializes a descriptor that borrows `color_formats`.
+    pub inline fn init(
+        color_formats: []const TextureFormat,
+    ) RenderBundleEncoderDescriptor {
+        return .{
+            .color_format_count = color_formats.len,
+            .color_formats = color_formats.ptr,
+        };
+    }
+};
+
+pub const RenderBundleEncoder = opaque {
+    pub inline fn draw(self: *RenderBundleEncoder, vertex_count: u32, instance_count: u32, first_vertex: u32, first_instance: u32) void {
+        raw.call(void, "wgpuRenderBundleEncoderDraw", .{ self, vertex_count, instance_count, first_vertex, first_instance });
+    }
+    pub inline fn drawIndexed(self: *RenderBundleEncoder, index_count: u32, instance_count: u32, first_index: u32, base_vertex: i32, first_instance: u32) void {
+        raw.call(void, "wgpuRenderBundleEncoderDrawIndexed", .{ self, index_count, instance_count, first_index, base_vertex, first_instance });
+    }
+    pub inline fn drawIndexedIndirect(self: *RenderBundleEncoder, indirect_buffer: *Buffer, indirect_offset: u64) void {
+        raw.call(void, "wgpuRenderBundleEncoderDrawIndexedIndirect", .{ self, indirect_buffer, indirect_offset });
+    }
+    pub inline fn drawIndirect(self: *RenderBundleEncoder, indirect_buffer: *Buffer, indirect_offset: u64) void {
+        raw.call(void, "wgpuRenderBundleEncoderDrawIndirect", .{ self, indirect_buffer, indirect_offset });
+    }
+    pub inline fn finish(self: *RenderBundleEncoder, descriptor: ?*const RenderBundleDescriptor) ?*RenderBundle {
+        return raw.call(?*RenderBundle, "wgpuRenderBundleEncoderFinish", .{ self, descriptor });
+    }
+    pub inline fn insertDebugMarker(self: *RenderBundleEncoder, marker_label: []const u8) void {
+        raw.call(void, "wgpuRenderBundleEncoderInsertDebugMarker", .{ self, StringView.fromSlice(marker_label) });
+    }
+    pub inline fn popDebugGroup(self: *RenderBundleEncoder) void {
+        raw.call(void, "wgpuRenderBundleEncoderPopDebugGroup", .{self});
+    }
+    pub inline fn pushDebugGroup(self: *RenderBundleEncoder, group_label: []const u8) void {
+        raw.call(void, "wgpuRenderBundleEncoderPushDebugGroup", .{ self, StringView.fromSlice(group_label) });
+    }
+    pub inline fn setBindGroup(
+        self: *RenderBundleEncoder,
+        group_index: u32,
+        group: ?*BindGroup,
+        dynamic_offsets: []const u32,
+    ) void {
+        raw.call(void, "wgpuRenderBundleEncoderSetBindGroup", .{
+            self,
+            group_index,
+            group,
+            dynamic_offsets.len,
+            dynamic_offsets.ptr,
+        });
+    }
+    pub inline fn setIndexBuffer(self: *RenderBundleEncoder, buffer: *Buffer, format: IndexFormat, offset: u64, size: u64) void {
+        raw.call(void, "wgpuRenderBundleEncoderSetIndexBuffer", .{ self, buffer, format, offset, size });
+    }
+
+    // Unimplemented as of wgpu-native v29.0.0.0,
+    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
+    // pub inline fn setLabel(self: *RenderBundleEncoder, label: []const u8) void {
+    //     wgpuRenderBundleEncoderSetLabel(self, StringView.fromSlice(label));
+    // }
+
+    pub inline fn setPipeline(self: *RenderBundleEncoder, pipeline: *RenderPipeline) void {
+        raw.call(void, "wgpuRenderBundleEncoderSetPipeline", .{ self, pipeline });
+    }
+    pub inline fn setVertexBuffer(self: *RenderBundleEncoder, slot: u32, buffer: ?*Buffer, offset: u64, size: u64) void {
+        raw.call(void, "wgpuRenderBundleEncoderSetVertexBuffer", .{ self, slot, buffer, offset, size });
+    }
+    pub inline fn addRef(self: *RenderBundleEncoder) void {
+        raw.call(void, "wgpuRenderBundleEncoderAddRef", .{self});
+    }
+    pub inline fn release(self: *RenderBundleEncoder) void {
+        raw.call(void, "wgpuRenderBundleEncoderRelease", .{self});
+    }
+
+    // wgpu-native
+    pub inline fn setImmediates(
+        self: *RenderBundleEncoder,
+        offset: u32,
+        data: []const u8,
+    ) void {
+        raw.call(void, "wgpuRenderBundleEncoderSetImmediates", .{
+            self,
+            offset,
+            @as(u32, @intCast(data.len)),
+            data.ptr,
+        });
+    }
+};
 
 pub const PassTimestampWrites = extern struct {
     next_in_chain: ?*const ChainedStruct = null,
@@ -70,8 +173,19 @@ pub const ComputePassEncoder = opaque {
     pub inline fn pushDebugGroup(self: *ComputePassEncoder, group_label: []const u8) void {
         raw.call(void, "wgpuComputePassEncoderPushDebugGroup", .{ self, StringView.fromSlice(group_label) });
     }
-    pub inline fn setBindGroup(self: *ComputePassEncoder, group_index: u32, group: *BindGroup, dynamic_offset_count: usize, dynamic_offsets: ?[*]const u32) void {
-        raw.call(void, "wgpuComputePassEncoderSetBindGroup", .{ self, group_index, group, dynamic_offset_count, dynamic_offsets });
+    pub inline fn setBindGroup(
+        self: *ComputePassEncoder,
+        group_index: u32,
+        group: ?*BindGroup,
+        dynamic_offsets: []const u32,
+    ) void {
+        raw.call(void, "wgpuComputePassEncoderSetBindGroup", .{
+            self,
+            group_index,
+            group,
+            dynamic_offsets.len,
+            dynamic_offsets.ptr,
+        });
     }
 
     // Unimplemented as of wgpu-native v29.0.0.0,
@@ -91,8 +205,17 @@ pub const ComputePassEncoder = opaque {
     }
 
     // wgpu-native
-    pub inline fn setImmediates(self: *ComputePassEncoder, offset: u32, size_bytes: u32, data: *const anyopaque) void {
-        raw.call(void, "wgpuComputePassEncoderSetImmediates", .{ self, offset, size_bytes, data });
+    pub inline fn setImmediates(
+        self: *ComputePassEncoder,
+        offset: u32,
+        data: []const u8,
+    ) void {
+        raw.call(void, "wgpuComputePassEncoderSetImmediates", .{
+            self,
+            offset,
+            @as(u32, @intCast(data.len)),
+            data.ptr,
+        });
     }
     pub inline fn beginPipelineStatisticsQuery(self: *ComputePassEncoder, query_set: *QuerySet, query_index: u32) void {
         raw.call(void, "wgpuComputePassEncoderBeginPipelineStatisticsQuery", .{ self, query_set, query_index });
@@ -161,12 +284,19 @@ pub const RenderPassDescriptor = extern struct {
     occlusion_query_set: ?*QuerySet = null,
     timestamp_writes: ?*const PassTimestampWrites = null,
 
-    pub inline fn withMaxDrawCount(self: RenderPassDescriptor, max_draw_count: u64) RenderPassDescriptor {
-        var descriptor = self;
-        descriptor.next_in_chain = @ptrCast(&RenderPassMaxDrawCount{
-            .max_draw_count = max_draw_count,
-        });
+    /// Initializes a descriptor that borrows `color_attachments`.
+    pub inline fn init(
+        color_attachments: []const ColorAttachment,
+    ) RenderPassDescriptor {
+        return .{
+            .color_attachment_count = color_attachments.len,
+            .color_attachments = color_attachments.ptr,
+        };
+    }
 
+    pub inline fn withExtras(self: RenderPassDescriptor, extras: *const RenderPassMaxDrawCount) RenderPassDescriptor {
+        var descriptor = self;
+        descriptor.next_in_chain = @ptrCast(extras);
         return descriptor;
     }
 };
@@ -207,8 +337,19 @@ pub const RenderPassEncoder = opaque {
     pub inline fn pushDebugGroup(self: *RenderPassEncoder, group_label: []const u8) void {
         raw.call(void, "wgpuRenderPassEncoderPushDebugGroup", .{ self, StringView.fromSlice(group_label) });
     }
-    pub inline fn setBindGroup(self: *RenderPassEncoder, group_index: u32, group: *BindGroup, dynamic_offset_count: usize, dynamic_offsets: ?[*]const u32) void {
-        raw.call(void, "wgpuRenderPassEncoderSetBindGroup", .{ self, group_index, group, dynamic_offset_count, dynamic_offsets });
+    pub inline fn setBindGroup(
+        self: *RenderPassEncoder,
+        group_index: u32,
+        group: ?*BindGroup,
+        dynamic_offsets: []const u32,
+    ) void {
+        raw.call(void, "wgpuRenderPassEncoderSetBindGroup", .{
+            self,
+            group_index,
+            group,
+            dynamic_offsets.len,
+            dynamic_offsets.ptr,
+        });
     }
     pub inline fn setBlendConstant(self: *RenderPassEncoder, color: *const Color) void {
         raw.call(void, "wgpuRenderPassEncoderSetBlendConstant", .{ self, color });
@@ -232,7 +373,7 @@ pub const RenderPassEncoder = opaque {
     pub inline fn setStencilReference(self: *RenderPassEncoder, stencil_reference: u32) void {
         raw.call(void, "wgpuRenderPassEncoderSetStencilReference", .{ self, stencil_reference });
     }
-    pub inline fn setVertexBuffer(self: *RenderPassEncoder, slot: u32, buffer: *Buffer, offset: u64, size: u64) void {
+    pub inline fn setVertexBuffer(self: *RenderPassEncoder, slot: u32, buffer: ?*Buffer, offset: u64, size: u64) void {
         raw.call(void, "wgpuRenderPassEncoderSetVertexBuffer", .{ self, slot, buffer, offset, size });
     }
     pub inline fn setViewport(self: *RenderPassEncoder, x: f32, y: f32, width: f32, height: f32, min_depth: f32, max_depth: f32) void {
@@ -246,8 +387,17 @@ pub const RenderPassEncoder = opaque {
     }
 
     // wgpu-native
-    pub inline fn setImmediates(self: *RenderPassEncoder, offset: u32, size_bytes: u32, data: *const anyopaque) void {
-        raw.call(void, "wgpuRenderPassEncoderSetImmediates", .{ self, offset, size_bytes, data });
+    pub inline fn setImmediates(
+        self: *RenderPassEncoder,
+        offset: u32,
+        data: []const u8,
+    ) void {
+        raw.call(void, "wgpuRenderPassEncoderSetImmediates", .{
+            self,
+            offset,
+            @as(u32, @intCast(data.len)),
+            data.ptr,
+        });
     }
     pub inline fn multiDrawIndirect(self: *RenderPassEncoder, buffer: *Buffer, offset: u64, count: u32) void {
         raw.call(void, "wgpuRenderPassEncoderMultiDrawIndirect", .{ self, buffer, offset, count });
