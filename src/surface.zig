@@ -247,6 +247,17 @@ pub const SurfaceConfiguration = extern struct {
     // When and in which order the surface's frames will be shown on the screen.
     present_mode: PresentMode = PresentMode.fifo,
 
+    /// Returns a configuration that borrows `view_formats`.
+    pub inline fn withViewFormats(
+        self: SurfaceConfiguration,
+        view_formats: []const TextureFormat,
+    ) SurfaceConfiguration {
+        var configuration = self;
+        configuration.view_format_count = view_formats.len;
+        configuration.view_formats = view_formats.ptr;
+        return configuration;
+    }
+
     pub inline fn withExtras(self: SurfaceConfiguration, extras: *const SurfaceConfigurationExtras) SurfaceConfiguration {
         var configuration = self;
         configuration.next_in_chain = @ptrCast(extras);

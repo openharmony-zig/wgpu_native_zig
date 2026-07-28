@@ -348,6 +348,9 @@ prefix contains both link modes and the matching headers.
   `setBindGroup()` takes a dynamic-offset slice, and `setImmediates()` takes a
   byte slice. Buffer mapped-range accessors return bounded byte slices and resolve
   `WGPU_WHOLE_MAP_SIZE` against the buffer size.
+- ABI-compatible descriptors retain their C pointer/count fields, while `init()`
+  and chainable `withXxx()` helpers accept borrowed slices and synchronize both
+  fields. The slice must remain alive until the native call returns.
 - Chained structs are provided with inline functions for constructing them, which come in two forms depending on whether or not the chained struct is likely to always be required.
   - For required chained structs, you can either write them explicitely:
     ```zig

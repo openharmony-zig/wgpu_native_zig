@@ -165,6 +165,17 @@ pub const InstanceDescriptor = extern struct {
     required_features: [*]const InstanceFeatureName = &[0]InstanceFeatureName{},
     required_limits: ?*const InstanceLimits = null,
 
+    /// Returns a descriptor that borrows `features` until the native call returns.
+    pub inline fn withRequiredFeatures(
+        self: InstanceDescriptor,
+        features: []const InstanceFeatureName,
+    ) InstanceDescriptor {
+        var descriptor = self;
+        descriptor.required_feature_count = features.len;
+        descriptor.required_features = features.ptr;
+        return descriptor;
+    }
+
     pub inline fn withExtras(self: InstanceDescriptor, extras: *const InstanceExtras) InstanceDescriptor {
         var descriptor = self;
         descriptor.next_in_chain = @ptrCast(extras);

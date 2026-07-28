@@ -31,6 +31,14 @@ pub const ShaderModuleDescriptorSpirV = extern struct {
     label: StringView = StringView{},
     source_size: u32,
     source: [*]const u32,
+
+    /// Initializes a descriptor that borrows `source`.
+    pub inline fn init(source: []const u32) ShaderModuleDescriptorSpirV {
+        return .{
+            .source_size = @intCast(source.len),
+            .source = source.ptr,
+        };
+    }
 };
 
 pub const ShaderSourceSPIRV = extern struct {
@@ -39,6 +47,14 @@ pub const ShaderSourceSPIRV = extern struct {
     },
     code_size: u32,
     code: [*]const u32,
+
+    /// Initializes a chained source that borrows `code`.
+    pub inline fn init(code: []const u32) ShaderSourceSPIRV {
+        return .{
+            .code_size = @intCast(code.len),
+            .code = code.ptr,
+        };
+    }
 };
 pub inline fn shaderModuleSPIRVDescriptor(source: *const ShaderSourceSPIRV, label: []const u8) ShaderModuleDescriptor {
     return .{
@@ -72,6 +88,17 @@ pub const ShaderSourceGLSL = extern struct {
     code: StringView,
     define_count: u32 = 0,
     defines: ?[*]const ShaderDefine = null,
+
+    /// Returns a source that borrows `defines`.
+    pub inline fn withDefines(
+        self: ShaderSourceGLSL,
+        defines: []const ShaderDefine,
+    ) ShaderSourceGLSL {
+        var source = self;
+        source.define_count = @intCast(defines.len);
+        source.defines = if (defines.len == 0) null else defines.ptr;
+        return source;
+    }
 };
 pub inline fn shaderModuleGLSLDescriptor(
     source: *const ShaderSourceGLSL,

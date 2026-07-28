@@ -91,6 +91,8 @@ pub fn main(init: std.process.Init) !void {
             },
         },
     };
+    var fragment_state = wgpu.FragmentState.init(shader_module, color_targets);
+    fragment_state.entry_point = wgpu.StringView.fromSlice("fs_main");
 
     const pipeline = device.createRenderPipeline(&wgpu.RenderPipelineDescriptor{
         .vertex = wgpu.VertexState{
@@ -98,7 +100,7 @@ pub fn main(init: std.process.Init) !void {
             .entry_point = wgpu.StringView.fromSlice("vs_main"),
         },
         .primitive = wgpu.PrimitiveState{},
-        .fragment = &wgpu.FragmentState{ .module = shader_module, .entry_point = wgpu.StringView.fromSlice("fs_main"), .target_count = color_targets.len, .targets = color_targets.ptr },
+        .fragment = &fragment_state,
         .multisample = wgpu.MultisampleState{},
     }).?;
     defer pipeline.release();
@@ -115,10 +117,8 @@ pub fn main(init: std.process.Init) !void {
             .view = next_texture,
             .clear_value = wgpu.Color{},
         }};
-        const render_pass = encoder.beginRenderPass(&wgpu.RenderPassDescriptor{
-            .color_attachment_count = color_attachments.len,
-            .color_attachments = color_attachments.ptr,
-        }).?;
+        const render_pass_descriptor = wgpu.RenderPassDescriptor.init(color_attachments);
+        const render_pass = encoder.beginRenderPass(&render_pass_descriptor).?;
 
         render_pass.setPipeline(pipeline);
         render_pass.draw(3, 1, 0, 0);

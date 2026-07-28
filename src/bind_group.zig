@@ -83,6 +83,14 @@ pub const BindGroupLayoutDescriptor = extern struct {
     label: StringView = StringView{},
     entry_count: usize,
     entries: [*]const BindGroupLayoutEntry,
+
+    /// Initializes a descriptor that borrows `entries`.
+    pub inline fn init(entries: []const BindGroupLayoutEntry) BindGroupLayoutDescriptor {
+        return .{
+            .entry_count = entries.len,
+            .entries = entries.ptr,
+        };
+    }
 };
 
 pub const BindGroupLayout = opaque {
@@ -104,12 +112,48 @@ pub const BindGroupEntryExtras = extern struct {
     chain: ChainedStruct = ChainedStruct{
         .s_type = SType.bind_group_entry_extras,
     },
-    buffers: ?[*]const *Buffer,
+    buffers: ?[*]const *Buffer = null,
     buffer_count: usize = 0,
-    samplers: ?[*]const *Sampler,
+    samplers: ?[*]const *Sampler = null,
     sampler_count: usize = 0,
-    texture_views: ?[*]const *TextureView,
+    texture_views: ?[*]const *TextureView = null,
     texture_view_count: usize = 0,
+
+    /// Returns extras that borrow `buffers`.
+    pub inline fn withBuffers(
+        self: BindGroupEntryExtras,
+        buffers: []const *Buffer,
+    ) BindGroupEntryExtras {
+        var extras = self;
+        extras.buffer_count = buffers.len;
+        extras.buffers = if (buffers.len == 0) null else buffers.ptr;
+        return extras;
+    }
+
+    /// Returns extras that borrow `samplers`.
+    pub inline fn withSamplers(
+        self: BindGroupEntryExtras,
+        samplers: []const *Sampler,
+    ) BindGroupEntryExtras {
+        var extras = self;
+        extras.sampler_count = samplers.len;
+        extras.samplers = if (samplers.len == 0) null else samplers.ptr;
+        return extras;
+    }
+
+    /// Returns extras that borrow `texture_views`.
+    pub inline fn withTextureViews(
+        self: BindGroupEntryExtras,
+        texture_views: []const *TextureView,
+    ) BindGroupEntryExtras {
+        var extras = self;
+        extras.texture_view_count = texture_views.len;
+        extras.texture_views = if (texture_views.len == 0)
+            null
+        else
+            texture_views.ptr;
+        return extras;
+    }
 };
 
 pub const BindGroupEntry = extern struct {
@@ -134,6 +178,18 @@ pub const BindGroupDescriptor = extern struct {
     layout: *BindGroupLayout,
     entry_count: usize,
     entries: [*]const BindGroupEntry,
+
+    /// Initializes a descriptor that borrows `entries`.
+    pub inline fn init(
+        layout: *BindGroupLayout,
+        entries: []const BindGroupEntry,
+    ) BindGroupDescriptor {
+        return .{
+            .layout = layout,
+            .entry_count = entries.len,
+            .entries = entries.ptr,
+        };
+    }
 };
 
 pub const BindGroup = opaque {

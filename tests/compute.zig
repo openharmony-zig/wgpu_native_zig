@@ -80,17 +80,16 @@ fn compute_collatz() ![4]u32 {
     const bind_group_layout = compute_pipeline.getBindGroupLayout(0).?;
     defer bind_group_layout.release();
 
-    const bind_group = device.createBindGroup(&wgpu.BindGroupDescriptor{
-        .label = wgpu.StringView.fromSlice("bind_group"),
-        .layout = bind_group_layout,
-        .entry_count = 1,
-        .entries = &[_]wgpu.BindGroupEntry{wgpu.BindGroupEntry{
-            .binding = 0,
-            .buffer = storage_buffer,
-            .offset = 0,
-            .size = numbers_size,
-        }},
-    }).?;
+    const bind_group_entries = [_]wgpu.BindGroupEntry{wgpu.BindGroupEntry{
+        .binding = 0,
+        .buffer = storage_buffer,
+        .offset = 0,
+        .size = numbers_size,
+    }};
+    var bind_group_descriptor =
+        wgpu.BindGroupDescriptor.init(bind_group_layout, &bind_group_entries);
+    bind_group_descriptor.label = wgpu.StringView.fromSlice("bind_group");
+    const bind_group = device.createBindGroup(&bind_group_descriptor).?;
     defer bind_group.release();
 
     const command_encoder = device.createCommandEncoder(&wgpu.CommandEncoderDescriptor{

@@ -45,6 +45,16 @@ pub const RenderBundleEncoderDescriptor = extern struct {
     sample_count: u32 = 1,
     depth_read_only: WGPUBool = @intFromBool(false),
     stencil_read_only: WGPUBool = @intFromBool(false),
+
+    /// Initializes a descriptor that borrows `color_formats`.
+    pub inline fn init(
+        color_formats: []const TextureFormat,
+    ) RenderBundleEncoderDescriptor {
+        return .{
+            .color_format_count = color_formats.len,
+            .color_formats = color_formats.ptr,
+        };
+    }
 };
 
 pub const RenderBundleEncoder = opaque {
@@ -273,6 +283,16 @@ pub const RenderPassDescriptor = extern struct {
     depth_stencil_attachment: ?*const DepthStencilAttachment = null,
     occlusion_query_set: ?*QuerySet = null,
     timestamp_writes: ?*const PassTimestampWrites = null,
+
+    /// Initializes a descriptor that borrows `color_attachments`.
+    pub inline fn init(
+        color_attachments: []const ColorAttachment,
+    ) RenderPassDescriptor {
+        return .{
+            .color_attachment_count = color_attachments.len,
+            .color_attachments = color_attachments.ptr,
+        };
+    }
 
     pub inline fn withExtras(self: RenderPassDescriptor, extras: *const RenderPassMaxDrawCount) RenderPassDescriptor {
         var descriptor = self;

@@ -27,6 +27,16 @@ pub const QuerySetDescriptorExtras = extern struct {
     },
     pipeline_statistics: [*]const PipelineStatisticName,
     pipeline_statistic_count: usize,
+
+    /// Initializes extras that borrow `pipeline_statistics`.
+    pub inline fn init(
+        pipeline_statistics: []const PipelineStatisticName,
+    ) QuerySetDescriptorExtras {
+        return .{
+            .pipeline_statistics = pipeline_statistics.ptr,
+            .pipeline_statistic_count = pipeline_statistics.len,
+        };
+    }
 };
 
 pub const QuerySetDescriptor = extern struct {

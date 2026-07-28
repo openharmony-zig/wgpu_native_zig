@@ -90,6 +90,17 @@ pub const DeviceDescriptor = extern struct {
     device_lost_callback_info: Device.DeviceLostCallbackInfo = .{},
     uncaptured_error_callback_info: Device.UncapturedErrorCallbackInfo = .{},
 
+    /// Returns a descriptor that borrows `features` until the native call returns.
+    pub inline fn withRequiredFeatures(
+        self: DeviceDescriptor,
+        features: []const FeatureName,
+    ) DeviceDescriptor {
+        var descriptor = self;
+        descriptor.required_feature_count = features.len;
+        descriptor.required_features = features.ptr;
+        return descriptor;
+    }
+
     pub inline fn withExtras(self: DeviceDescriptor, extras: *const DeviceExtras) DeviceDescriptor {
         var descriptor = self;
         descriptor.next_in_chain = @ptrCast(extras);

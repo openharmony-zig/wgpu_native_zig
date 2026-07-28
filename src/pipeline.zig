@@ -32,6 +32,16 @@ pub const PipelineLayoutDescriptor = extern struct {
     bind_group_layouts: [*]const *BindGroupLayout,
     immediate_size: u32 = 0,
 
+    /// Initializes a descriptor that borrows `bind_group_layouts`.
+    pub inline fn init(
+        bind_group_layouts: []const *BindGroupLayout,
+    ) PipelineLayoutDescriptor {
+        return .{
+            .bind_group_layout_count = bind_group_layouts.len,
+            .bind_group_layouts = bind_group_layouts.ptr,
+        };
+    }
+
     pub inline fn withExtras(self: PipelineLayoutDescriptor, extras: *const PipelineLayoutExtras) PipelineLayoutDescriptor {
         var descriptor = self;
         descriptor.next_in_chain = @ptrCast(extras);
@@ -67,6 +77,17 @@ pub const ComputeState = extern struct {
     entry_point: StringView = StringView{},
     constant_count: usize = 0,
     constants: [*]const ConstantEntry = &[0]ConstantEntry{},
+
+    /// Returns state that borrows `constants`.
+    pub inline fn withConstants(
+        self: ComputeState,
+        constants: []const ConstantEntry,
+    ) ComputeState {
+        var state = self;
+        state.constant_count = constants.len;
+        state.constants = constants.ptr;
+        return state;
+    }
 };
 
 pub const ComputePipelineDescriptor = extern struct {
@@ -163,6 +184,18 @@ pub const VertexBufferLayout = extern struct {
     array_stride: u64,
     attribute_count: usize,
     attributes: [*]const VertexAttribute,
+
+    /// Initializes a layout that borrows `attributes`.
+    pub inline fn init(
+        array_stride: u64,
+        attributes: []const VertexAttribute,
+    ) VertexBufferLayout {
+        return .{
+            .array_stride = array_stride,
+            .attribute_count = attributes.len,
+            .attributes = attributes.ptr,
+        };
+    }
 };
 
 pub const VertexState = extern struct {
@@ -173,6 +206,28 @@ pub const VertexState = extern struct {
     constants: [*]const ConstantEntry = &[0]ConstantEntry{},
     buffer_count: usize = 0,
     buffers: [*]const VertexBufferLayout = &[0]VertexBufferLayout{},
+
+    /// Returns state that borrows `constants`.
+    pub inline fn withConstants(
+        self: VertexState,
+        constants: []const ConstantEntry,
+    ) VertexState {
+        var state = self;
+        state.constant_count = constants.len;
+        state.constants = constants.ptr;
+        return state;
+    }
+
+    /// Returns state that borrows `buffers`.
+    pub inline fn withBuffers(
+        self: VertexState,
+        buffers: []const VertexBufferLayout,
+    ) VertexState {
+        var state = self;
+        state.buffer_count = buffers.len;
+        state.buffers = buffers.ptr;
+        return state;
+    }
 };
 
 pub const PrimitiveTopology = enum(u32) {
@@ -361,6 +416,40 @@ pub const FragmentState = extern struct {
     constants: [*]const ConstantEntry = &[0]ConstantEntry{},
     target_count: usize,
     targets: [*]const ColorTargetState,
+
+    /// Initializes fragment state that borrows `targets`.
+    pub inline fn init(
+        module: *ShaderModule,
+        targets: []const ColorTargetState,
+    ) FragmentState {
+        return .{
+            .module = module,
+            .target_count = targets.len,
+            .targets = targets.ptr,
+        };
+    }
+
+    /// Returns state that borrows `constants`.
+    pub inline fn withConstants(
+        self: FragmentState,
+        constants: []const ConstantEntry,
+    ) FragmentState {
+        var state = self;
+        state.constant_count = constants.len;
+        state.constants = constants.ptr;
+        return state;
+    }
+
+    /// Returns state that borrows `targets`.
+    pub inline fn withTargets(
+        self: FragmentState,
+        targets: []const ColorTargetState,
+    ) FragmentState {
+        var state = self;
+        state.target_count = targets.len;
+        state.targets = targets.ptr;
+        return state;
+    }
 };
 
 pub const RenderPipelineDescriptor = extern struct {

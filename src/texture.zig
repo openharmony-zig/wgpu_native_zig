@@ -276,6 +276,17 @@ pub const TextureDescriptor = extern struct {
     sample_count: u32 = 1,
     view_format_count: usize = 0,
     view_formats: [*]const TextureFormat = &[_]TextureFormat{},
+
+    /// Returns a descriptor that borrows `view_formats`.
+    pub inline fn withViewFormats(
+        self: TextureDescriptor,
+        view_formats: []const TextureFormat,
+    ) TextureDescriptor {
+        var descriptor = self;
+        descriptor.view_format_count = view_formats.len;
+        descriptor.view_formats = view_formats.ptr;
+        return descriptor;
+    }
 };
 
 /// Borrowed backend-native `id<MTLTexture>` returned by wgpu-native.
