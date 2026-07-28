@@ -344,22 +344,21 @@ pub const Instance = opaque {
         // TODO: Revisit once Instance.waitAny() is implemented in wgpu-native,
         //       it takes in futures and returns when one of them completes.
         _ = adapter_future;
-        var io_error: ?std.Io.Cancelable = null;
-        self.processEvents();
-        while (!state.completed) {
-            if (io_error == null) {
-                io.sleep(.fromNanoseconds(polling_interval_nanoseconds), .awake) catch |err| {
-                    io_error = err;
-                };
-            }
-            self.processEvents();
-        }
+        var wait_error: ?std.Io.Cancelable = null;
+        _async.waitForCallback(
+            self,
+            &state.completed,
+            io,
+            polling_interval_nanoseconds,
+        ) catch |err| {
+            wait_error = err;
+        };
 
         if (state.message_error) |err| {
             state.response.deinit(allocator);
             return err;
         }
-        if (io_error) |err| {
+        if (wait_error) |err| {
             state.response.deinit(allocator);
             return err;
         }

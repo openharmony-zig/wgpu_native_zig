@@ -39,6 +39,7 @@ pub const AdapterType = enum(u32) {
     integrated_gpu = 0x00000002,
     cpu = 0x00000003,
     unknown = 0x00000004,
+    _,
 };
 
 pub const BackendType = enum(u32) {
@@ -93,19 +94,23 @@ pub const RequestAdapterWebXROptions = extern struct {
 
 pub const AdapterInfo = extern struct {
     next_in_chain: ?*ChainedStructOut = null,
-    vendor: StringView,
-    architecture: StringView,
-    device: StringView,
-    description: StringView,
-    backend_type: BackendType,
-    adapter_type: AdapterType,
-    vendor_id: u32,
-    device_id: u32,
-    subgroup_min_size: u32,
-    subgroup_max_size: u32,
+    vendor: StringView = .{},
+    architecture: StringView = .{},
+    device: StringView = .{},
+    description: StringView = .{},
+    backend_type: BackendType = .undefined,
+    adapter_type: AdapterType = @enumFromInt(0),
+    vendor_id: u32 = 0,
+    device_id: u32 = 0,
+    subgroup_min_size: u32 = 0,
+    subgroup_max_size: u32 = 0,
 
-    pub inline fn freeMembers(self: AdapterInfo) void {
-        raw.call(void, "wgpuAdapterInfoFreeMembers", .{self});
+    pub inline fn deinit(self: *AdapterInfo) void {
+        raw.call(void, "wgpuAdapterInfoFreeMembers", .{self.*});
+        self.vendor = .{};
+        self.architecture = .{};
+        self.device = .{};
+        self.description = .{};
     }
 };
 
@@ -213,22 +218,21 @@ pub const Adapter = opaque {
         // TODO: Revisit once Instance.waitAny() is implemented in wgpu-native,
         //       it takes in futures and returns when one of them completes.
         _ = device_future;
-        var io_error: ?std.Io.Cancelable = null;
-        instance.processEvents();
-        while (!state.completed) {
-            if (io_error == null) {
-                io.sleep(.fromNanoseconds(polling_interval_nanoseconds), .awake) catch |err| {
-                    io_error = err;
-                };
-            }
-            instance.processEvents();
-        }
+        var wait_error: ?std.Io.Cancelable = null;
+        _async.waitForCallback(
+            instance,
+            &state.completed,
+            io,
+            polling_interval_nanoseconds,
+        ) catch |err| {
+            wait_error = err;
+        };
 
         if (state.message_error) |err| {
             state.response.deinit(allocator);
             return err;
         }
-        if (io_error) |err| {
+        if (wait_error) |err| {
             state.response.deinit(allocator);
             return err;
         }
@@ -259,6 +263,25 @@ test "can request device" {
     };
     if (adapter == null) return error.SkipZigTest;
     defer adapter.?.release();
+
+    var features = SupportedFeatures{};
+    adapter.?.getFeatures(&features);
+    defer features.deinit();
+    try testing.expect(features.feature_count == 0 or features.features != null);
+    features.deinit();
+    try testing.expectEqual(0, features.feature_count);
+    try testing.expectEqual(null, features.features);
+
+    var info = AdapterInfo{};
+    const info_status = adapter.?.getInfo(&info);
+    defer info.deinit();
+    try testing.expectEqual(Status.success, info_status);
+    info.deinit();
+    try testing.expectEqual(null, info.vendor.toSlice());
+    try testing.expectEqual(null, info.architecture.toSlice());
+    try testing.expectEqual(null, info.device.toSlice());
+    try testing.expectEqual(null, info.description.toSlice());
+
     var device_response = try adapter.?.requestDeviceSync(testing.allocator, testing.io, instance, null, 200_000_000);
     defer device_response.deinit(testing.allocator);
     const device: ?*Device = switch (device_response.status) {

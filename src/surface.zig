@@ -259,25 +259,32 @@ pub const SurfaceCapabilities = extern struct {
 
     // The bit set of supported TextureUsage bits.
     // Guaranteed to contain TextureUsage.render_attachment.
-    usages: TextureUsage,
+    usages: TextureUsage = TextureUsages.none,
 
     // A list of supported TextureFormat values, in order of preference.
-    format_count: usize,
-    formats: [*]const TextureFormat,
+    format_count: usize = 0,
+    formats: ?[*]const TextureFormat = null,
 
     // A list of supported PresentMode values.
     // Guaranteed to contain PresentMode.fifo.
-    present_mode_count: usize,
-    present_modes: [*]const PresentMode,
+    present_mode_count: usize = 0,
+    present_modes: ?[*]const PresentMode = null,
 
     // A list of supported CompositeAlphaMode values.
     // CompositeAlphaMode.auto will be an alias for the first element and will never be present in this array.
-    alpha_mode_count: usize,
-    alpha_modes: [*]const CompositeAlphaMode,
+    alpha_mode_count: usize = 0,
+    alpha_modes: ?[*]const CompositeAlphaMode = null,
 
     // Frees array members of SurfaceCapabilities which were allocated by the API.
-    pub inline fn freeMembers(self: SurfaceCapabilities) void {
-        raw.call(void, "wgpuSurfaceCapabilitiesFreeMembers", .{self});
+    pub inline fn deinit(self: *SurfaceCapabilities) void {
+        raw.call(void, "wgpuSurfaceCapabilitiesFreeMembers", .{self.*});
+        self.usages = TextureUsages.none;
+        self.format_count = 0;
+        self.formats = null;
+        self.present_mode_count = 0;
+        self.present_modes = null;
+        self.alpha_mode_count = 0;
+        self.alpha_modes = null;
     }
 };
 
@@ -304,18 +311,30 @@ pub const GetCurrentTextureStatus = enum(u32) {
 
     // wgpu-native extension: the surface is currently occluded.
     occluded = 0x00030001,
+    _,
 };
 
 // Queried each frame from a Surface to get a Texture to render to along with some metadata.
 pub const SurfaceTexture = extern struct {
-    next_in_chain: ?*ChainedStructOut,
+    next_in_chain: ?*ChainedStructOut = null,
 
     // The Texture representing the frame that will be shown on the surface.
     // It is ReturnedWithOwnership from Surface.getCurrentTexture().
-    texture: ?*Texture,
+    texture: ?*Texture = null,
 
     // Whether the call to Surface.getCurrentTexture() succeeded and a hint as to why it might not have.
-    status: GetCurrentTextureStatus,
+    status: GetCurrentTextureStatus = @enumFromInt(0),
+
+    pub inline fn deinit(self: *SurfaceTexture) void {
+        if (self.texture) |texture| texture.release();
+        self.texture = null;
+    }
+
+    pub inline fn takeTexture(self: *SurfaceTexture) ?*Texture {
+        const texture = self.texture;
+        self.texture = null;
+        return texture;
+    }
 };
 
 pub const Surface = opaque {
@@ -330,7 +349,7 @@ pub const Surface = opaque {
     //
     // capabilities
     // The structure to fill capabilities in.
-    // It may contain memory allocations so `capabilities.freeMembers()` must be called to avoid memory leaks.
+    // It may contain memory allocations so `capabilities.deinit()` must be called to avoid memory leaks.
     //
     // Return value indicates if there was an OutStructChainError.
     //

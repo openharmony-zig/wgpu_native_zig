@@ -68,10 +68,12 @@ fn unitTests(
     const unit_test_step = b.step("test", "Run unit tests");
     const unit_tests = .{
         .{ .path = "src/misc.zig", .name = "misc-test" },
+        .{ .path = "src/async.zig", .name = "async-test" },
         .{ .path = "src/instance.zig", .name = "instance-test" },
         .{ .path = "src/adapter.zig", .name = "adapter-test" },
         .{ .path = "src/pipeline.zig", .name = "pipeline-test" },
         .{ .path = "tests/lifetimes.zig", .name = "lifetimes-test" },
+        .{ .path = "tests/ownership.zig", .name = "ownership-test" },
     };
 
     inline for (unit_tests) |unit_test| {
@@ -81,7 +83,7 @@ fn unitTests(
             .optimize = library.optimize,
         });
         test_mod.addImport("wgpu-header", library.wgpu_c_mod);
-        if (std.mem.eql(u8, unit_test.path, "tests/lifetimes.zig")) {
+        if (std.mem.startsWith(u8, unit_test.path, "tests/")) {
             test_mod.addImport("wgpu", library.wgpu_mod);
         }
         library.linkTestModule(b, test_mod);

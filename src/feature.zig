@@ -58,10 +58,12 @@ pub const FeatureName = enum(u32) {
 };
 
 pub const SupportedFeatures = extern struct {
-    feature_count: usize,
-    features: [*]const FeatureName,
+    feature_count: usize = 0,
+    features: ?[*]const FeatureName = null,
 
-    pub inline fn freeMembers(self: SupportedFeatures) void {
-        raw.call(void, "wgpuSupportedFeaturesFreeMembers", .{self});
+    pub inline fn deinit(self: *SupportedFeatures) void {
+        raw.call(void, "wgpuSupportedFeaturesFreeMembers", .{self.*});
+        self.feature_count = 0;
+        self.features = null;
     }
 };

@@ -313,6 +313,18 @@ link modes and the matching headers.
     The synchronous response owns its copied callback message and returned handle.
     Call `deinit()` on every response, and use `takeAdapter()` or `takeDevice()` to
     transfer a successful handle out of it.
+    If the supplied `Io` is cancelled, the synchronous wrapper finishes draining
+    the native callback before returning the cancellation error, yielding the
+    polling thread between `processEvents()` calls. This is required because
+    wgpu-native v29 has no `waitAny()` implementation and the callback userdata
+    must remain alive until completion.
+- Output structures whose members are allocated by wgpu-native use pointer-based
+  `deinit()` methods. In particular, `SupportedFeatures`, `AdapterInfo`, and
+  `SurfaceCapabilities` clear their owned pointers, counts, and strings after
+  releasing them, so a deferred `deinit()` cannot observe stale members.
+- `SurfaceTexture` owns the texture returned by `Surface.getCurrentTexture()`.
+  Use `defer surface_texture.deinit()` to release it automatically, or call
+  `takeTexture()` to transfer the texture to code that will release it.
 - Chained structs are provided with inline functions for constructing them, which come in two forms depending on whether or not the chained struct is likely to always be required.
   - For required chained structs, you can either write them explicitely:
     ```zig
