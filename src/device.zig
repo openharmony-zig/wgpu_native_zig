@@ -71,6 +71,9 @@ const _texture = @import("texture.zig");
 const TextureDescriptor = _texture.TextureDescriptor;
 const Texture = _texture.Texture;
 
+/// Borrowed backend-native `id<MTLDevice>` returned by wgpu-native.
+pub const NativeMetalDevice = opaque {};
+
 pub const DeviceLostReason = enum(u32) {
     unknown = 0x00000001,
     destroyed = 0x00000002,
@@ -82,7 +85,7 @@ pub const DeviceLostCallbackInfo = extern struct {
     next_in_chain: ?*ChainedStruct = null,
 
     // Apparently in the webgpu header this has no (valid) default: https://github.com/webgpu-native/webgpu-headers/pull/471
-    // As of wgpu-native v24.0.3.1, Instance.waitAny() has not been implemented, but Instance.processEvents() has,
+    // As of wgpu-native v29.0.0.0, Instance.waitAny() has not been implemented, but Instance.processEvents() has,
     // so the safest mode to use currently is probably CallbackMode.allow_process_events.
     // If you really know what you're doing, CallbackMode.allow_spontaneous could also work as an option here.
     // TODO: Revisit this if/when Instance.waitAny() is implemented in wgpu-native
@@ -229,7 +232,7 @@ pub const Device = opaque {
     pub inline fn createBuffer(self: *Device, descriptor: *const BufferDescriptor) ?*Buffer {
         return raw.call(?*Buffer, "wgpuDeviceCreateBuffer", .{ self, descriptor });
     }
-    pub inline fn createCommandEncoder(self: *Device, descriptor: *const CommandEncoderDescriptor) ?*CommandEncoder {
+    pub inline fn createCommandEncoder(self: *Device, descriptor: ?*const CommandEncoderDescriptor) ?*CommandEncoder {
         return raw.call(?*CommandEncoder, "wgpuDeviceCreateCommandEncoder", .{ self, descriptor });
     }
     pub inline fn createComputePipeline(self: *Device, descriptor: *const ComputePipelineDescriptor) ?*ComputePipeline {
@@ -261,7 +264,7 @@ pub const Device = opaque {
     //     return wgpuDeviceCreateRenderPipelineAsync(self, descriptor, callback_info);
     // }
 
-    pub inline fn createSampler(self: *Device, descriptor: *const SamplerDescriptor) ?*Sampler {
+    pub inline fn createSampler(self: *Device, descriptor: ?*const SamplerDescriptor) ?*Sampler {
         return raw.call(?*Sampler, "wgpuDeviceCreateSampler", .{ self, descriptor });
     }
     pub inline fn createShaderModule(self: *Device, descriptor: *const ShaderModuleDescriptor) ?*ShaderModule {
@@ -297,8 +300,8 @@ pub const Device = opaque {
     pub inline fn getQueue(self: *Device) ?*Queue {
         return raw.call(?*Queue, "wgpuDeviceGetQueue", .{self});
     }
-    pub inline fn hasFeature(self: *Device, feature: FeatureName) WGPUBool {
-        return raw.call(WGPUBool, "wgpuDeviceHasFeature", .{ self, feature });
+    pub inline fn hasFeature(self: *Device, feature: FeatureName) bool {
+        return raw.call(WGPUBool, "wgpuDeviceHasFeature", .{ self, feature }) != 0;
     }
 
     pub inline fn popErrorScope(self: *Device, callback_info: PopErrorScopeCallbackInfo) Future {
@@ -327,6 +330,21 @@ pub const Device = opaque {
     }
     pub inline fn createShaderModuleSpirV(self: *Device, descriptor: *const ShaderModuleDescriptorSpirV) ?*ShaderModule {
         return raw.call(?*ShaderModule, "wgpuDeviceCreateShaderModuleSpirV", .{ self, descriptor });
+    }
+
+    /// Returns a borrowed Metal device when this device uses the Metal backend.
+    /// The pointer remains valid only while `self` is alive and must not be released.
+    pub inline fn getNativeMetalDevice(self: *Device) ?*NativeMetalDevice {
+        return raw.call(?*NativeMetalDevice, "wgpuDeviceGetNativeMetalDevice", .{self});
+    }
+
+    /// Starts a platform graphics-debugger capture when supported.
+    pub inline fn startGraphicsDebuggerCapture(self: *Device) bool {
+        return raw.call(WGPUBool, "wgpuDeviceStartGraphicsDebuggerCapture", .{self}) != 0;
+    }
+
+    pub inline fn stopGraphicsDebuggerCapture(self: *Device) void {
+        raw.call(void, "wgpuDeviceStopGraphicsDebuggerCapture", .{self});
     }
 };
 

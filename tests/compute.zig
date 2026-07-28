@@ -33,6 +33,7 @@ fn compute_collatz() ![4]u32 {
 
     const queue = device.getQueue().?;
     defer queue.release();
+    try testing.expect(queue.getTimestampPeriod() > 0);
 
     const shader_module = device.createShaderModule(&wgpu.shaderModuleWGSLDescriptor(.{
         .label = "compute.wgsl",

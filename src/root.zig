@@ -85,6 +85,7 @@ pub const CommandEncoder = _command_encoder.CommandEncoder;
 
 const _device = @import("device.zig");
 pub const DeviceLostReason = _device.DeviceLostReason;
+pub const NativeMetalDevice = _device.NativeMetalDevice;
 pub const DeviceLostCallbackInfo = _device.DeviceLostCallbackInfo;
 pub const DeviceLostCallback = _device.DeviceLostCallback;
 pub const defaultDeviceLostCallback = _device.defaultDeviceLostCallback;
@@ -292,6 +293,7 @@ pub const StorageTextureBindingLayout = _texture.StorageTextureBindingLayout;
 pub const TextureDimension = _texture.TextureDimension;
 pub const Extent3D = _texture.Extent3D;
 pub const TextureDescriptor = _texture.TextureDescriptor;
+pub const NativeMetalTexture = _texture.NativeMetalTexture;
 pub const Texture = _texture.Texture;
 pub const Origin3D = _texture.Origin3D;
 pub const TexelCopyTextureInfo = _texture.TexelCopyTextureInfo;

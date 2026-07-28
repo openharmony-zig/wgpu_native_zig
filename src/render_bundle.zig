@@ -36,7 +36,7 @@ pub const RenderBundleEncoder = opaque {
     pub inline fn drawIndirect(self: *RenderBundleEncoder, indirect_buffer: *Buffer, indirect_offset: u64) void {
         raw.call(void, "wgpuRenderBundleEncoderDrawIndirect", .{ self, indirect_buffer, indirect_offset });
     }
-    pub inline fn finish(self: *RenderBundleEncoder, descriptor: *const RenderBundleDescriptor) ?*RenderBundle {
+    pub inline fn finish(self: *RenderBundleEncoder, descriptor: ?*const RenderBundleDescriptor) ?*RenderBundle {
         return raw.call(?*RenderBundle, "wgpuRenderBundleEncoderFinish", .{ self, descriptor });
     }
     pub inline fn insertDebugMarker(self: *RenderBundleEncoder, marker_label: []const u8) void {
@@ -48,7 +48,7 @@ pub const RenderBundleEncoder = opaque {
     pub inline fn pushDebugGroup(self: *RenderBundleEncoder, group_label: []const u8) void {
         raw.call(void, "wgpuRenderBundleEncoderPushDebugGroup", .{ self, StringView.fromSlice(group_label) });
     }
-    pub inline fn setBindGroup(self: *RenderBundleEncoder, group_index: u32, group: *BindGroup, dynamic_offset_count: usize, dynamic_offsets: ?[*]const u32) void {
+    pub inline fn setBindGroup(self: *RenderBundleEncoder, group_index: u32, group: ?*BindGroup, dynamic_offset_count: usize, dynamic_offsets: ?[*]const u32) void {
         raw.call(void, "wgpuRenderBundleEncoderSetBindGroup", .{ self, group_index, group, dynamic_offset_count, dynamic_offsets });
     }
     pub inline fn setIndexBuffer(self: *RenderBundleEncoder, buffer: *Buffer, format: IndexFormat, offset: u64, size: u64) void {
@@ -64,7 +64,7 @@ pub const RenderBundleEncoder = opaque {
     pub inline fn setPipeline(self: *RenderBundleEncoder, pipeline: *RenderPipeline) void {
         raw.call(void, "wgpuRenderBundleEncoderSetPipeline", .{ self, pipeline });
     }
-    pub inline fn setVertexBuffer(self: *RenderBundleEncoder, slot: u32, buffer: *Buffer, offset: u64, size: u64) void {
+    pub inline fn setVertexBuffer(self: *RenderBundleEncoder, slot: u32, buffer: ?*Buffer, offset: u64, size: u64) void {
         raw.call(void, "wgpuRenderBundleEncoderSetVertexBuffer", .{ self, slot, buffer, offset, size });
     }
     pub inline fn addRef(self: *RenderBundleEncoder) void {

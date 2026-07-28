@@ -20,7 +20,6 @@ const SurfaceDescriptor = _surface.SurfaceDescriptor;
 
 const _misc = @import("misc.zig");
 const WGPUFlags = _misc.WGPUFlags;
-const WGPUBool = _misc.WGPUBool;
 const StringView = _misc.StringView;
 const Status = _misc.Status;
 
@@ -145,10 +144,6 @@ pub const InstanceFeatureName = enum(u32) {
 pub const SupportedInstanceFeatures = extern struct {
     feature_count: usize = 0,
     features: [*]const InstanceFeatureName = &[0]InstanceFeatureName{},
-
-    pub inline fn freeMembers(self: SupportedInstanceFeatures) void {
-        raw.call(void, "wgpuSupportedInstanceFeaturesFreeMembers", .{self});
-    }
 };
 
 pub const InstanceLimits = extern struct {
@@ -237,16 +232,8 @@ pub const Instance = opaque {
         return raw.call(?*Instance, "wgpuCreateInstance", .{descriptor});
     }
 
-    pub inline fn getFeatures(features: *SupportedInstanceFeatures) void {
-        raw.call(void, "wgpuGetInstanceFeatures", .{features});
-    }
-
     pub inline fn getLimits(limits: *InstanceLimits) Status {
         return raw.call(Status, "wgpuGetInstanceLimits", .{limits});
-    }
-
-    pub inline fn hasFeature(feature: InstanceFeatureName) bool {
-        return raw.call(WGPUBool, "wgpuHasInstanceFeature", .{feature}) != 0;
     }
 
     pub inline fn createSurface(self: *Instance, descriptor: *const SurfaceDescriptor) ?*Surface {

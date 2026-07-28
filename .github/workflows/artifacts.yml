@@ -153,6 +153,8 @@ jobs:
         run: |
           "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --install "ndk;27.0.12077973"
           echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/27.0.12077973" >> "$GITHUB_ENV"
+      - name: Compile bindings and ABI audit
+        run: zig build --build-file build.tests.zig check -Dtarget=${{ matrix.zig_target }} -Doptimize=ReleaseFast --summary all
       - name: Build static and dynamic libraries
         run: zig build -Dtarget=${{ matrix.zig_target }} -Doptimize=ReleaseFast -p dist/wgpu-android-${{ matrix.abi }}
       - uses: actions/upload-artifact@v4

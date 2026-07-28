@@ -23,6 +23,10 @@ pub const Result = struct {
         return self.platform.kind == .ohos;
     }
 
+    pub fn isAndroid(self: Result) bool {
+        return self.platform.kind == .android;
+    }
+
     pub fn linkModule(
         self: Result,
         b: *std.Build,

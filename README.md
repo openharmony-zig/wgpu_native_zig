@@ -5,16 +5,42 @@ Requires Zig 0.16.x.
 
 This package exposes two modules: `wgpu-c` and `wgpu`.
 
-`wgpu-c` is just `wgpu.h` (and by extension `webgpu.h`) run through `translate-c`, so as close to wgpu-native's original C API as is possible in Zig.
+`wgpu-c` is `wgpu.h` (and therefore `webgpu.h`) translated directly by Zig, so it
+tracks wgpu-native's C API without a second handwritten declaration layer.
 
 `wgpu` is a Zig-friendly wrapper over the bindings generated directly from `wgpu.h` and
 `webgpu.h`. The generated declarations are also available through `wgpu.raw`; wrapper
 methods and raw calls therefore share the headers as their single ABI source of truth.
 
+### Binding coverage
+
+The pinned wgpu-native `v29.0.0.0` headers currently declare 226 functions. The
+`wgpu` wrapper exposes every function with a usable v29 implementation, while
+`wgpu.raw` and `wgpu-c` expose all function and type declarations produced by
+`translate-c`. A compile-time audit checks this partition, rejects handwritten
+`extern fn wgpu...` declarations, and fails when a future header update adds an
+unclassified function or type.
+
+The following v29 API groups intentionally remain raw-only because their upstream
+implementations panic, are blocked, or always return an unavailable result:
+
+- `wgpuGetProcAddress` and the currently unimplemented `*SetLabel` functions.
+- Async pipeline creation, shader compilation info, device-lost futures, `waitAny`,
+  WGSL-language feature queries, and global instance-feature enumeration.
+- Buffer map-state and mapped-range copy helpers.
+- External-texture lifecycle functions.
+- Device adapter-info lookup and texture binding-view-dimension lookup.
+- The native Metal command-queue accessor, which always returns null in v29.
+
+Supported wgpu-native extensions are available as regular Zig methods, including
+`Queue.getTimestampPeriod`, graphics-debugger capture control, and the borrowed Metal
+device/texture accessors. Platform-native pointers are optional and must not be released
+by the caller.
+
 ## Adding this package to your build
 Add the package to your dependencies, either with:
 ```sh
-zig fetch --save https://github.com/bronter/wgpu_native_zig/archive/refs/tags/v7.0.0.tar.gz
+zig fetch --save https://github.com/openharmony-zig/wgpu_native_zig/archive/refs/tags/v7.0.0.tar.gz
 ```
 or by manually adding to your `build.zig.zon`:
 ```zig
@@ -24,9 +50,9 @@ or by manually adding to your `build.zig.zon`:
         // ...other dependencies
         .wgpu_native_zig = .{
             // You can either use a commit hash:
-            .url="https://github.com/bronter/wgpu_native_zig/archive/<commit_hash>.tar.gz",
+            .url="https://github.com/openharmony-zig/wgpu_native_zig/archive/<commit_hash>.tar.gz",
             // or a tagged release:
-            // .url = "https://github.com/bronter/wgpu_native_zig/archive/refs/tags/v7.0.0.tar.gz`
+            // .url = "https://github.com/openharmony-zig/wgpu_native_zig/archive/refs/tags/v7.0.0.tar.gz`
             .hash="<dependency hash>"
         }
     }
@@ -189,9 +215,9 @@ zig build --build-file build.tests.zig check \
 ```
 
 The target-artifact workflow builds the complete matrix on Linux x86_64/aarch64, macOS
-arm64/Intel, Windows, Android, and OpenHarmony runners. Every artifact prefix contains
-both link modes and the matching headers.
-
+arm64/Intel, Windows, Android, and OpenHarmony runners. Android and OpenHarmony run the
+binding/ABI audit for every ABI before packaging. Every artifact prefix contains both
+link modes and the matching headers.
 
 ## How the `wgpu` module differs from `wgpu-c`
 * Names are shortened to remove redundancy.
@@ -233,16 +259,15 @@ both link modes and the matching headers.
     }
     var adapter_ptr: ?*Adapter = null;
     var completed = false;
-    const request_adapter_info = RequestAdapterInfo {
+    const request_adapter_info = RequestAdapterCallbackInfo {
         .callback = handleRequestAdapter,
         .userdata1 = @ptrCast(&adapter_ptr),
         .userdata2 = @ptrCast(&completed),
     }
     const ra_future = instance.requestAdapter(null, request_adapter_info);
 
-    // There is currently no way to use a `Future`,
-    // it's supposed to be passed into `Instance.waitAny()`,
-    // which is unimplemented as of `wgpu_native` v24.0.3.1.
+    // wgpu-native v29 does not implement Instance.waitAny(), so drive
+    // allow_process_events callbacks with Instance.processEvents().
     _ = ra_future; 
 
     instance.processEvents();

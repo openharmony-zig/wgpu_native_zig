@@ -285,6 +285,9 @@ pub const TextureDescriptor = extern struct {
     view_formats: [*]const TextureFormat = &[_]TextureFormat{},
 };
 
+/// Borrowed backend-native `id<MTLTexture>` returned by wgpu-native.
+pub const NativeMetalTexture = opaque {};
+
 pub const Texture = opaque {
     pub inline fn createView(self: *Texture, descriptor: ?*const TextureViewDescriptor) ?*TextureView {
         return raw.call(?*TextureView, "wgpuTextureCreateView", .{ self, descriptor });
@@ -328,6 +331,12 @@ pub const Texture = opaque {
     }
     pub inline fn release(self: *Texture) void {
         raw.call(void, "wgpuTextureRelease", .{self});
+    }
+
+    /// Returns a borrowed Metal texture when this texture uses the Metal backend.
+    /// The pointer remains valid only while `self` is alive and must not be released.
+    pub inline fn getNativeMetalTexture(self: *Texture) ?*NativeMetalTexture {
+        return raw.call(?*NativeMetalTexture, "wgpuTextureGetNativeMetalTexture", .{self});
     }
 };
 

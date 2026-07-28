@@ -70,7 +70,7 @@ pub const ComputePassEncoder = opaque {
     pub inline fn pushDebugGroup(self: *ComputePassEncoder, group_label: []const u8) void {
         raw.call(void, "wgpuComputePassEncoderPushDebugGroup", .{ self, StringView.fromSlice(group_label) });
     }
-    pub inline fn setBindGroup(self: *ComputePassEncoder, group_index: u32, group: *BindGroup, dynamic_offset_count: usize, dynamic_offsets: ?[*]const u32) void {
+    pub inline fn setBindGroup(self: *ComputePassEncoder, group_index: u32, group: ?*BindGroup, dynamic_offset_count: usize, dynamic_offsets: ?[*]const u32) void {
         raw.call(void, "wgpuComputePassEncoderSetBindGroup", .{ self, group_index, group, dynamic_offset_count, dynamic_offsets });
     }
 
@@ -207,7 +207,7 @@ pub const RenderPassEncoder = opaque {
     pub inline fn pushDebugGroup(self: *RenderPassEncoder, group_label: []const u8) void {
         raw.call(void, "wgpuRenderPassEncoderPushDebugGroup", .{ self, StringView.fromSlice(group_label) });
     }
-    pub inline fn setBindGroup(self: *RenderPassEncoder, group_index: u32, group: *BindGroup, dynamic_offset_count: usize, dynamic_offsets: ?[*]const u32) void {
+    pub inline fn setBindGroup(self: *RenderPassEncoder, group_index: u32, group: ?*BindGroup, dynamic_offset_count: usize, dynamic_offsets: ?[*]const u32) void {
         raw.call(void, "wgpuRenderPassEncoderSetBindGroup", .{ self, group_index, group, dynamic_offset_count, dynamic_offsets });
     }
     pub inline fn setBlendConstant(self: *RenderPassEncoder, color: *const Color) void {
@@ -232,7 +232,7 @@ pub const RenderPassEncoder = opaque {
     pub inline fn setStencilReference(self: *RenderPassEncoder, stencil_reference: u32) void {
         raw.call(void, "wgpuRenderPassEncoderSetStencilReference", .{ self, stencil_reference });
     }
-    pub inline fn setVertexBuffer(self: *RenderPassEncoder, slot: u32, buffer: *Buffer, offset: u64, size: u64) void {
+    pub inline fn setVertexBuffer(self: *RenderPassEncoder, slot: u32, buffer: ?*Buffer, offset: u64, size: u64) void {
         raw.call(void, "wgpuRenderPassEncoderSetVertexBuffer", .{ self, slot, buffer, offset, size });
     }
     pub inline fn setViewport(self: *RenderPassEncoder, x: f32, y: f32, width: f32, height: f32, min_depth: f32, max_depth: f32) void {

@@ -26,15 +26,10 @@ const _misc = @import("misc.zig");
 const WGPU_WHOLE_SIZE = _misc.WGPU_WHOLE_SIZE;
 const StringView = _misc.StringView;
 
-pub const ExternalTexture = opaque {
-    pub inline fn addRef(self: *ExternalTexture) void {
-        raw.call(void, "wgpuExternalTextureAddRef", .{self});
-    }
-
-    pub inline fn release(self: *ExternalTexture) void {
-        raw.call(void, "wgpuExternalTextureRelease", .{self});
-    }
-};
+// wgpu-native v29 declares ExternalTexture lifecycle functions, but their
+// implementations panic. Keep the handle type for binding descriptors while
+// exposing those functions only through `wgpu.raw`.
+pub const ExternalTexture = opaque {};
 
 pub const ExternalTextureBindingLayout = extern struct {
     chain: ChainedStruct = .{

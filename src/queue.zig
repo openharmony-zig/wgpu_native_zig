@@ -75,4 +75,9 @@ pub const Queue = opaque {
     pub inline fn submitForIndex(self: *Queue, commands: []const *const CommandBuffer) SubmissionIndex {
         return raw.call(SubmissionIndex, "wgpuQueueSubmitForIndex", .{ self, commands.len, commands.ptr });
     }
+
+    /// Returns the number of nanoseconds represented by one timestamp-query tick.
+    pub inline fn getTimestampPeriod(self: *Queue) f32 {
+        return raw.call(f32, "wgpuQueueGetTimestampPeriod", .{self});
+    }
 };
