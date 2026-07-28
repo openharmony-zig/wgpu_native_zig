@@ -10,6 +10,15 @@ pub const WGPU_WHOLE_SIZE = U64_MAX;
 pub const WGPUBool = u32;
 pub const WGPUFlags = u64;
 
+pub fn sliceFromOptional(
+    comptime T: type,
+    items: ?[*]const T,
+    count: usize,
+) []const T {
+    if (count == 0) return &.{};
+    return items.?[0..count];
+}
+
 // Status code returned (synchronously) from many operations.
 // Generally indicates an invalid input like an unknown enum value or OutStructChainError.
 pub const Status = enum(u32) {

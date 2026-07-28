@@ -10,12 +10,6 @@ const output_extent = wgpu.Extent3D{
 const output_bytes_per_row = 4 * output_extent.width;
 const output_size = output_bytes_per_row * output_extent.height;
 
-fn handleBufferMap(status: wgpu.Buffer.MapAsyncStatus, _: wgpu.StringView, userdata1: ?*anyopaque, _: ?*anyopaque) callconv(.c) void {
-    std.log.info("buffer_map status={x:.8}\n", .{@intFromEnum(status)});
-    const complete: *bool = @ptrCast(@alignCast(userdata1));
-    complete.* = true;
-}
-
 // Based off of headless triangle example from https://github.com/eliemichel/LearnWebGPU-Code/tree/step030-headless
 
 pub fn main(init: std.process.Init) !void {
@@ -157,21 +151,21 @@ pub fn main(init: std.process.Init) !void {
 
         queue.submit(&[_]*const wgpu.CommandBuffer{command_buffer});
 
-        var buffer_map_complete = false;
-        _ = staging_buffer.mapAsync(wgpu.Buffer.MapModes.read, 0, output_size, wgpu.Buffer.MapCallbackInfo{
-            .callback = handleBufferMap,
-            .userdata1 = @ptrCast(&buffer_map_complete),
-        });
-        instance.processEvents();
-        while (!buffer_map_complete) {
-            instance.processEvents();
-        }
-        // _ = device.poll(true, null);
+        var map_response = try staging_buffer.mapSync(
+            init.gpa,
+            init.io,
+            instance,
+            wgpu.Buffer.MapModes.read,
+            0,
+            output_size,
+            0,
+        );
+        defer map_response.deinit(init.gpa);
+        if (map_response.status != .success) return error.BufferMapFailed;
 
-        const buf: [*]u8 = @ptrCast(@alignCast(staging_buffer.getMappedRange(0, output_size).?));
+        const output = staging_buffer.getConstMappedRange(0, output_size).?;
         defer staging_buffer.unmap();
 
-        const output = buf[0..output_size];
         try bmp.write24BitBMP(init.io, "examples/output/triangle.bmp", output_extent.width, output_extent.height, output);
     }
 }

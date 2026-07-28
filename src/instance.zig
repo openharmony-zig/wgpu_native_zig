@@ -18,6 +18,7 @@ const _misc = @import("misc.zig");
 const WGPUFlags = _misc.WGPUFlags;
 const StringView = _misc.StringView;
 const Status = _misc.Status;
+const sliceFromOptional = _misc.sliceFromOptional;
 
 const _async = @import("async.zig");
 const CallbackMode = _async.CallbackMode;
@@ -140,7 +141,17 @@ pub const InstanceFeatureName = enum(u32) {
 
 pub const SupportedInstanceFeatures = extern struct {
     feature_count: usize = 0,
-    features: [*]const InstanceFeatureName = &[0]InstanceFeatureName{},
+    features: ?[*]const InstanceFeatureName = null,
+
+    pub inline fn slice(
+        self: *const SupportedInstanceFeatures,
+    ) []const InstanceFeatureName {
+        return sliceFromOptional(
+            InstanceFeatureName,
+            self.features,
+            self.feature_count,
+        );
+    }
 };
 
 pub const InstanceLimits = extern struct {
@@ -174,8 +185,18 @@ pub const WGSLLanguageFeatureName = enum(u32) {
 };
 
 pub const SupportedWGSLLanguageFeatures = extern struct {
-    feature_count: usize,
-    features: [*]const WGSLLanguageFeatureName,
+    feature_count: usize = 0,
+    features: ?[*]const WGSLLanguageFeatureName = null,
+
+    pub inline fn slice(
+        self: *const SupportedWGSLLanguageFeatures,
+    ) []const WGSLLanguageFeatureName {
+        return sliceFromOptional(
+            WGSLLanguageFeatureName,
+            self.features,
+            self.feature_count,
+        );
+    }
 
     // Unimplemented as of wgpu-native v29.0.0.0,
     // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
@@ -219,6 +240,27 @@ pub const GlobalReport = extern struct {
 pub const EnumerateAdapterOptions = extern struct {
     next_in_chain: ?*const ChainedStruct = null,
     backends: InstanceBackend,
+};
+
+pub const AdapterList = struct {
+    adapters: []?*Adapter = &.{},
+
+    pub fn deinit(
+        self: *AdapterList,
+        allocator: std.mem.Allocator,
+    ) void {
+        for (self.adapters) |adapter| {
+            if (adapter) |value| value.release();
+        }
+        if (self.adapters.len != 0) allocator.free(self.adapters);
+        self.adapters = &.{};
+    }
+
+    pub fn takeAdapter(self: *AdapterList, index: usize) ?*Adapter {
+        const adapter = self.adapters[index];
+        self.adapters[index] = null;
+        return adapter;
+    }
 };
 
 // wgpu-native
@@ -315,13 +357,14 @@ pub const Instance = opaque {
             .message = null,
             .adapter = adapter,
         };
-        if (message.toSlice()) |slice| {
-            state.response.message = state.allocator.dupe(u8, slice) catch |err| {
-                state.message_error = err;
-                state.completed = true;
-                return;
-            };
-        }
+        state.response.message = _async.copyCallbackMessage(
+            state.allocator,
+            message,
+        ) catch |err| {
+            state.message_error = err;
+            state.completed = true;
+            return;
+        };
         state.completed = true;
     }
 
@@ -388,8 +431,31 @@ pub const Instance = opaque {
     pub inline fn generateReport(self: *Instance, report: *GlobalReport) void {
         raw.call(void, "wgpuGenerateReport", .{ self, report });
     }
-    pub inline fn enumerateAdapters(self: *Instance, options: ?*EnumerateAdapterOptions, adapters: ?[*]*Adapter) usize {
+    fn enumerateAdaptersRaw(
+        self: *Instance,
+        options: ?*const EnumerateAdapterOptions,
+        adapters: ?[*]?*Adapter,
+    ) usize {
         return raw.call(usize, "wgpuInstanceEnumerateAdapters", .{ self, options, adapters });
+    }
+
+    /// Enumerates adapters and owns every returned adapter handle.
+    /// Call AdapterList.deinit(), or take individual handles with takeAdapter().
+    pub fn enumerateAdapters(
+        self: *Instance,
+        allocator: std.mem.Allocator,
+        options: ?*const EnumerateAdapterOptions,
+    ) std.mem.Allocator.Error!AdapterList {
+        const count = self.enumerateAdaptersRaw(options, null);
+        if (count == 0) return .{};
+
+        const adapters = try allocator.alloc(?*Adapter, count);
+        errdefer allocator.free(adapters);
+        @memset(adapters, null);
+
+        const written = self.enumerateAdaptersRaw(options, adapters.ptr);
+        std.debug.assert(written == count);
+        return .{ .adapters = adapters };
     }
 };
 
@@ -434,4 +500,21 @@ test "synchronous adapter callback copies its message" {
     callback_message[0] = 'n';
     try testing.expect(state.completed);
     try testing.expectEqualStrings("old", state.response.message.?);
+}
+
+test "enumerated adapter ownership can be transferred" {
+    const testing = std.testing;
+
+    const instance = Instance.create(null).?;
+    defer instance.release();
+
+    var adapters = try instance.enumerateAdapters(testing.allocator, null);
+    defer adapters.deinit(testing.allocator);
+
+    for (adapters.adapters) |adapter| try testing.expect(adapter != null);
+    if (adapters.adapters.len != 0) {
+        const adapter = adapters.takeAdapter(0).?;
+        defer adapter.release();
+        try testing.expectEqual(null, adapters.adapters[0]);
+    }
 }

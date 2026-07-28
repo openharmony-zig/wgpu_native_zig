@@ -19,6 +19,7 @@ const Device = _device.Device;
 const _misc = @import("misc.zig");
 const WGPUBool = _misc.WGPUBool;
 const StringView = _misc.StringView;
+const sliceFromOptional = _misc.sliceFromOptional;
 const Status = _misc.Status;
 
 // The root descriptor for the creation of an Surface with Instance.createSurface().
@@ -274,6 +275,32 @@ pub const SurfaceCapabilities = extern struct {
     // CompositeAlphaMode.auto will be an alias for the first element and will never be present in this array.
     alpha_mode_count: usize = 0,
     alpha_modes: ?[*]const CompositeAlphaMode = null,
+
+    pub inline fn formatsSlice(
+        self: *const SurfaceCapabilities,
+    ) []const TextureFormat {
+        return sliceFromOptional(TextureFormat, self.formats, self.format_count);
+    }
+
+    pub inline fn presentModesSlice(
+        self: *const SurfaceCapabilities,
+    ) []const PresentMode {
+        return sliceFromOptional(
+            PresentMode,
+            self.present_modes,
+            self.present_mode_count,
+        );
+    }
+
+    pub inline fn alphaModesSlice(
+        self: *const SurfaceCapabilities,
+    ) []const CompositeAlphaMode {
+        return sliceFromOptional(
+            CompositeAlphaMode,
+            self.alpha_modes,
+            self.alpha_mode_count,
+        );
+    }
 
     // Frees array members of SurfaceCapabilities which were allocated by the API.
     pub inline fn deinit(self: *SurfaceCapabilities) void {

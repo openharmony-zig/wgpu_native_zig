@@ -110,6 +110,7 @@ pub const RegistryReport = _instance.RegistryReport;
 pub const HubReport = _instance.HubReport;
 pub const GlobalReport = _instance.GlobalReport;
 pub const EnumerateAdapterOptions = _instance.EnumerateAdapterOptions;
+pub const AdapterList = _instance.AdapterList;
 pub const Instance = _instance.Instance;
 
 const _limits = @import("limits.zig");

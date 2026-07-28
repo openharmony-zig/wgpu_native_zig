@@ -188,13 +188,14 @@ pub const Adapter = opaque {
             .message = null,
             .device = device,
         };
-        if (message.toSlice()) |slice| {
-            state.response.message = state.allocator.dupe(u8, slice) catch |err| {
-                state.message_error = err;
-                state.completed = true;
-                return;
-            };
-        }
+        state.response.message = _async.copyCallbackMessage(
+            state.allocator,
+            message,
+        ) catch |err| {
+            state.message_error = err;
+            state.completed = true;
+            return;
+        };
         state.completed = true;
     }
 

@@ -1,6 +1,8 @@
 const std = @import("std");
 
-const WGPUBool = @import("misc.zig").WGPUBool;
+const _misc = @import("misc.zig");
+const StringView = _misc.StringView;
+const WGPUBool = _misc.WGPUBool;
 
 //
 // The callback mode controls how a callback for an asynchronous operation may be fired.
@@ -66,6 +68,16 @@ pub const FutureWaitInfo = extern struct {
     // Whether or not the future completed.
     completed: WGPUBool,
 };
+
+/// Copies a callback StringView whose storage is owned by the native
+/// implementation. The caller owns the returned slice.
+pub fn copyCallbackMessage(
+    allocator: std.mem.Allocator,
+    message: StringView,
+) std.mem.Allocator.Error!?[]const u8 {
+    const slice = message.toSlice() orelse return null;
+    return try allocator.dupe(u8, slice);
+}
 
 /// Drives an `allow_process_events` callback to completion.
 ///

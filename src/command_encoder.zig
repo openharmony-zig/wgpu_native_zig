@@ -72,8 +72,19 @@ pub const RenderBundleEncoder = opaque {
     pub inline fn pushDebugGroup(self: *RenderBundleEncoder, group_label: []const u8) void {
         raw.call(void, "wgpuRenderBundleEncoderPushDebugGroup", .{ self, StringView.fromSlice(group_label) });
     }
-    pub inline fn setBindGroup(self: *RenderBundleEncoder, group_index: u32, group: ?*BindGroup, dynamic_offset_count: usize, dynamic_offsets: ?[*]const u32) void {
-        raw.call(void, "wgpuRenderBundleEncoderSetBindGroup", .{ self, group_index, group, dynamic_offset_count, dynamic_offsets });
+    pub inline fn setBindGroup(
+        self: *RenderBundleEncoder,
+        group_index: u32,
+        group: ?*BindGroup,
+        dynamic_offsets: []const u32,
+    ) void {
+        raw.call(void, "wgpuRenderBundleEncoderSetBindGroup", .{
+            self,
+            group_index,
+            group,
+            dynamic_offsets.len,
+            dynamic_offsets.ptr,
+        });
     }
     pub inline fn setIndexBuffer(self: *RenderBundleEncoder, buffer: *Buffer, format: IndexFormat, offset: u64, size: u64) void {
         raw.call(void, "wgpuRenderBundleEncoderSetIndexBuffer", .{ self, buffer, format, offset, size });
@@ -99,8 +110,17 @@ pub const RenderBundleEncoder = opaque {
     }
 
     // wgpu-native
-    pub inline fn setImmediates(self: *RenderBundleEncoder, offset: u32, size_bytes: u32, data: *const anyopaque) void {
-        raw.call(void, "wgpuRenderBundleEncoderSetImmediates", .{ self, offset, size_bytes, data });
+    pub inline fn setImmediates(
+        self: *RenderBundleEncoder,
+        offset: u32,
+        data: []const u8,
+    ) void {
+        raw.call(void, "wgpuRenderBundleEncoderSetImmediates", .{
+            self,
+            offset,
+            @as(u32, @intCast(data.len)),
+            data.ptr,
+        });
     }
 };
 
@@ -143,8 +163,19 @@ pub const ComputePassEncoder = opaque {
     pub inline fn pushDebugGroup(self: *ComputePassEncoder, group_label: []const u8) void {
         raw.call(void, "wgpuComputePassEncoderPushDebugGroup", .{ self, StringView.fromSlice(group_label) });
     }
-    pub inline fn setBindGroup(self: *ComputePassEncoder, group_index: u32, group: ?*BindGroup, dynamic_offset_count: usize, dynamic_offsets: ?[*]const u32) void {
-        raw.call(void, "wgpuComputePassEncoderSetBindGroup", .{ self, group_index, group, dynamic_offset_count, dynamic_offsets });
+    pub inline fn setBindGroup(
+        self: *ComputePassEncoder,
+        group_index: u32,
+        group: ?*BindGroup,
+        dynamic_offsets: []const u32,
+    ) void {
+        raw.call(void, "wgpuComputePassEncoderSetBindGroup", .{
+            self,
+            group_index,
+            group,
+            dynamic_offsets.len,
+            dynamic_offsets.ptr,
+        });
     }
 
     // Unimplemented as of wgpu-native v29.0.0.0,
@@ -164,8 +195,17 @@ pub const ComputePassEncoder = opaque {
     }
 
     // wgpu-native
-    pub inline fn setImmediates(self: *ComputePassEncoder, offset: u32, size_bytes: u32, data: *const anyopaque) void {
-        raw.call(void, "wgpuComputePassEncoderSetImmediates", .{ self, offset, size_bytes, data });
+    pub inline fn setImmediates(
+        self: *ComputePassEncoder,
+        offset: u32,
+        data: []const u8,
+    ) void {
+        raw.call(void, "wgpuComputePassEncoderSetImmediates", .{
+            self,
+            offset,
+            @as(u32, @intCast(data.len)),
+            data.ptr,
+        });
     }
     pub inline fn beginPipelineStatisticsQuery(self: *ComputePassEncoder, query_set: *QuerySet, query_index: u32) void {
         raw.call(void, "wgpuComputePassEncoderBeginPipelineStatisticsQuery", .{ self, query_set, query_index });
@@ -277,8 +317,19 @@ pub const RenderPassEncoder = opaque {
     pub inline fn pushDebugGroup(self: *RenderPassEncoder, group_label: []const u8) void {
         raw.call(void, "wgpuRenderPassEncoderPushDebugGroup", .{ self, StringView.fromSlice(group_label) });
     }
-    pub inline fn setBindGroup(self: *RenderPassEncoder, group_index: u32, group: ?*BindGroup, dynamic_offset_count: usize, dynamic_offsets: ?[*]const u32) void {
-        raw.call(void, "wgpuRenderPassEncoderSetBindGroup", .{ self, group_index, group, dynamic_offset_count, dynamic_offsets });
+    pub inline fn setBindGroup(
+        self: *RenderPassEncoder,
+        group_index: u32,
+        group: ?*BindGroup,
+        dynamic_offsets: []const u32,
+    ) void {
+        raw.call(void, "wgpuRenderPassEncoderSetBindGroup", .{
+            self,
+            group_index,
+            group,
+            dynamic_offsets.len,
+            dynamic_offsets.ptr,
+        });
     }
     pub inline fn setBlendConstant(self: *RenderPassEncoder, color: *const Color) void {
         raw.call(void, "wgpuRenderPassEncoderSetBlendConstant", .{ self, color });
@@ -316,8 +367,17 @@ pub const RenderPassEncoder = opaque {
     }
 
     // wgpu-native
-    pub inline fn setImmediates(self: *RenderPassEncoder, offset: u32, size_bytes: u32, data: *const anyopaque) void {
-        raw.call(void, "wgpuRenderPassEncoderSetImmediates", .{ self, offset, size_bytes, data });
+    pub inline fn setImmediates(
+        self: *RenderPassEncoder,
+        offset: u32,
+        data: []const u8,
+    ) void {
+        raw.call(void, "wgpuRenderPassEncoderSetImmediates", .{
+            self,
+            offset,
+            @as(u32, @intCast(data.len)),
+            data.ptr,
+        });
     }
     pub inline fn multiDrawIndirect(self: *RenderPassEncoder, buffer: *Buffer, offset: u64, count: u32) void {
         raw.call(void, "wgpuRenderPassEncoderMultiDrawIndirect", .{ self, buffer, offset, count });

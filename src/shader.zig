@@ -71,7 +71,7 @@ pub const ShaderSourceGLSL = extern struct {
     stage: ShaderStage,
     code: StringView,
     define_count: u32 = 0,
-    defines: ?[*]ShaderDefine = null,
+    defines: ?[*]const ShaderDefine = null,
 };
 pub inline fn shaderModuleGLSLDescriptor(
     source: *const ShaderSourceGLSL,

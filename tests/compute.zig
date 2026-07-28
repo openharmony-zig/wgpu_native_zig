@@ -3,12 +3,6 @@ const testing = std.testing;
 
 const wgpu = @import("wgpu");
 
-fn handleBufferMap(status: wgpu.Buffer.MapAsyncStatus, _: wgpu.StringView, userdata1: ?*anyopaque, _: ?*anyopaque) callconv(.c) void {
-    std.log.info("buffer_map status={x:.8}\n", .{@intFromEnum(status)});
-    const completed: *bool = @ptrCast(@alignCast(userdata1));
-    completed.* = true;
-}
-
 fn compute_collatz() ![4]u32 {
     const numbers = [_]u32{ 1, 2, 3, 4 };
     const numbers_size = @sizeOf(@TypeOf(numbers));
@@ -32,6 +26,20 @@ fn compute_collatz() ![4]u32 {
         else => return error.NoDevice,
     };
     defer device.release();
+
+    device.pushErrorScope(.validation);
+    var error_scope = try device.popErrorScopeSync(
+        testing.allocator,
+        testing.io,
+        instance,
+        200_000_000,
+    );
+    defer error_scope.deinit(testing.allocator);
+    try testing.expectEqual(
+        wgpu.Device.PopErrorScopeStatus.success,
+        error_scope.status,
+    );
+    try testing.expectEqual(wgpu.Device.ErrorType.no_error, error_scope.error_type);
 
     const queue = device.getQueue().?;
     defer queue.release();
@@ -95,7 +103,7 @@ fn compute_collatz() ![4]u32 {
     }).?;
 
     compute_pass_encoder.setPipeline(compute_pipeline);
-    compute_pass_encoder.setBindGroup(0, bind_group, 0, null);
+    compute_pass_encoder.setBindGroup(0, bind_group, &.{});
     compute_pass_encoder.dispatchWorkgroups(numbers_length, 1, 1);
     compute_pass_encoder.end();
 
@@ -109,20 +117,35 @@ fn compute_collatz() ![4]u32 {
     }).?;
     defer command_buffer.release();
 
-    queue.writeBuffer(storage_buffer, 0, &numbers, numbers_size);
+    queue.writeBuffer(storage_buffer, 0, std.mem.asBytes(&numbers));
     queue.submit(&[_]*const wgpu.CommandBuffer{command_buffer});
 
-    var buffer_map_complete = false;
-    _ = staging_buffer.mapAsync(wgpu.Buffer.MapModes.read, 0, numbers_size, wgpu.Buffer.MapCallbackInfo{
-        .callback = handleBufferMap,
-        .userdata1 = @ptrCast(&buffer_map_complete),
-    });
-    instance.processEvents();
-    while (!buffer_map_complete) {
-        instance.processEvents();
-    }
+    var work_done = try queue.onSubmittedWorkDoneSync(
+        testing.allocator,
+        testing.io,
+        instance,
+        200_000_000,
+    );
+    defer work_done.deinit(testing.allocator);
+    try testing.expectEqual(wgpu.Queue.WorkDoneStatus.success, work_done.status);
 
-    const buf: [*]u32 = @ptrCast(@alignCast(staging_buffer.getMappedRange(0, numbers_size).?));
+    var map_response = try staging_buffer.mapSync(
+        testing.allocator,
+        testing.io,
+        instance,
+        wgpu.Buffer.MapModes.read,
+        0,
+        numbers_size,
+        200_000_000,
+    );
+    defer map_response.deinit(testing.allocator);
+    try testing.expectEqual(wgpu.Buffer.MapAsyncStatus.success, map_response.status);
+
+    const mapped = staging_buffer.getConstMappedRange(
+        0,
+        wgpu.WGPU_WHOLE_MAP_SIZE,
+    ).?;
+    const buf: [*]const u32 = @ptrCast(@alignCast(mapped.ptr));
     defer staging_buffer.unmap();
 
     const ret = [4]u32{ buf[0], buf[1], buf[2], buf[3] };

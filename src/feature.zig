@@ -1,4 +1,5 @@
 const raw = @import("raw.zig");
+const sliceFromOptional = @import("misc.zig").sliceFromOptional;
 
 pub const FeatureName = enum(u32) {
     core_features_and_limits = 0x00000001,
@@ -60,6 +61,14 @@ pub const FeatureName = enum(u32) {
 pub const SupportedFeatures = extern struct {
     feature_count: usize = 0,
     features: ?[*]const FeatureName = null,
+
+    pub inline fn slice(self: *const SupportedFeatures) []const FeatureName {
+        return sliceFromOptional(
+            FeatureName,
+            self.features,
+            self.feature_count,
+        );
+    }
 
     pub inline fn deinit(self: *SupportedFeatures) void {
         raw.call(void, "wgpuSupportedFeaturesFreeMembers", .{self.*});

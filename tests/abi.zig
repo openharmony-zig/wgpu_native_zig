@@ -87,6 +87,82 @@ test "wrapper types match the C ABI" {
     }
 }
 
+test "wrapper defaults and pointer qualifiers match header semantics" {
+    comptime {
+        const descriptor = wgpu.DeviceDescriptor{};
+        if (descriptor.required_limits != null) {
+            @compileError("DeviceDescriptor.required_limits must default to null");
+        }
+        const extras = wgpu.DeviceExtras{};
+        if (extras.trace_path.data != null or
+            extras.trace_path.length != wgpu.WGPU_STRLEN)
+        {
+            @compileError("DeviceExtras.trace_path must use the StringView initializer");
+        }
+
+        const instance_features = wgpu.SupportedInstanceFeatures{};
+        if (instance_features.feature_count != 0 or
+            instance_features.features != null)
+        {
+            @compileError("SupportedInstanceFeatures must use the C initializer defaults");
+        }
+        const wgsl_features = wgpu.SupportedWGSLLanguageFeatures{};
+        if (wgsl_features.feature_count != 0 or wgsl_features.features != null) {
+            @compileError("SupportedWGSLLanguageFeatures must use the C initializer defaults");
+        }
+
+        requireOptionalConstManyPointer(
+            @FieldType(wgpu.ShaderSourceGLSL, "defines"),
+            wgpu.ShaderDefine,
+            "ShaderSourceGLSL.defines",
+        );
+        const enumerate_info = @typeInfo(@TypeOf(
+            wgpu.Instance.enumerateAdapters,
+        )).@"fn";
+        requireOptionalConstOnePointer(
+            enumerate_info.params[2].type.?,
+            wgpu.EnumerateAdapterOptions,
+            "Instance.enumerateAdapters options",
+        );
+    }
+}
+
+fn requireOptionalConstManyPointer(
+    comptime Pointer: type,
+    comptime Child: type,
+    comptime name: []const u8,
+) void {
+    const optional = switch (@typeInfo(Pointer)) {
+        .optional => |info| info,
+        else => @compileError(name ++ " must be optional"),
+    };
+    const pointer = switch (@typeInfo(optional.child)) {
+        .pointer => |info| info,
+        else => @compileError(name ++ " must contain a pointer"),
+    };
+    if (pointer.size != .many or !pointer.is_const or pointer.child != Child) {
+        @compileError(name ++ " must be a const many-item pointer");
+    }
+}
+
+fn requireOptionalConstOnePointer(
+    comptime Pointer: type,
+    comptime Child: type,
+    comptime name: []const u8,
+) void {
+    const optional = switch (@typeInfo(Pointer)) {
+        .optional => |info| info,
+        else => @compileError(name ++ " must be optional"),
+    };
+    const pointer = switch (@typeInfo(optional.child)) {
+        .pointer => |info| info,
+        else => @compileError(name ++ " must contain a pointer"),
+    };
+    if (pointer.size != .one or !pointer.is_const or pointer.child != Child) {
+        @compileError(name ++ " must be a const single-item pointer");
+    }
+}
+
 fn validateNamespaceAbi(comptime namespace: type) void {
     for (std.meta.declarations(namespace)) |declaration| {
         const ZigType = @field(namespace, declaration.name);

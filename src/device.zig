@@ -77,7 +77,7 @@ pub const DeviceExtras = extern struct {
     chain: ChainedStruct = ChainedStruct{
         .s_type = SType.device_extras,
     },
-    trace_path: StringView,
+    trace_path: StringView = .{},
 };
 
 pub const DeviceDescriptor = extern struct {
@@ -85,7 +85,7 @@ pub const DeviceDescriptor = extern struct {
     label: StringView = StringView{},
     required_feature_count: usize = 0,
     required_features: [*]const FeatureName = &[0]FeatureName{},
-    required_limits: ?*const Limits,
+    required_limits: ?*const Limits = null,
     default_queue: QueueDescriptor = QueueDescriptor{},
     device_lost_callback_info: Device.DeviceLostCallbackInfo = .{},
     uncaptured_error_callback_info: Device.UncapturedErrorCallbackInfo = .{},
@@ -196,6 +196,55 @@ pub const Device = opaque {
         userdata1: ?*anyopaque = null,
         userdata2: ?*anyopaque = null,
     };
+
+    pub const PopErrorScopeResponse = struct {
+        status: PopErrorScopeStatus,
+        error_type: ErrorType,
+        message: ?[]const u8,
+
+        pub fn deinit(
+            self: *PopErrorScopeResponse,
+            allocator: std.mem.Allocator,
+        ) void {
+            if (self.message) |message| allocator.free(message);
+            self.message = null;
+        }
+    };
+
+    pub const PopErrorScopeSyncError =
+        std.Io.Cancelable || std.mem.Allocator.Error;
+
+    const PopErrorScopeSyncState = struct {
+        allocator: std.mem.Allocator,
+        response: PopErrorScopeResponse = undefined,
+        message_error: ?std.mem.Allocator.Error = null,
+        completed: bool = false,
+    };
+
+    fn defaultPopErrorScopeCallback(
+        status: PopErrorScopeStatus,
+        error_type: ErrorType,
+        message: StringView,
+        userdata1: ?*anyopaque,
+        _: ?*anyopaque,
+    ) callconv(.c) void {
+        const state: *PopErrorScopeSyncState =
+            @ptrCast(@alignCast(userdata1));
+        state.response = .{
+            .status = status,
+            .error_type = error_type,
+            .message = null,
+        };
+        state.response.message = _async.copyCallbackMessage(
+            state.allocator,
+            message,
+        ) catch |err| {
+            state.message_error = err;
+            state.completed = true;
+            return;
+        };
+        state.completed = true;
+    }
 
     pub const CreatePipelineAsyncStatus = enum(u32) {
         success = 0x00000001,
@@ -326,6 +375,43 @@ pub const Device = opaque {
     pub inline fn popErrorScope(self: *Device, callback_info: PopErrorScopeCallbackInfo) Future {
         return raw.call(Future, "wgpuDevicePopErrorScope", .{ self, callback_info });
     }
+
+    /// Pops an error scope while safely driving an allow_process_events
+    /// callback. The response owns its copied message until deinit().
+    pub fn popErrorScopeSync(
+        self: *Device,
+        allocator: std.mem.Allocator,
+        io: std.Io,
+        event_source: anytype,
+        polling_interval_nanoseconds: u64,
+    ) PopErrorScopeSyncError!PopErrorScopeResponse {
+        var state = PopErrorScopeSyncState{ .allocator = allocator };
+        _ = self.popErrorScope(.{
+            .callback = defaultPopErrorScopeCallback,
+            .userdata1 = @ptrCast(&state),
+        });
+
+        var wait_error: ?std.Io.Cancelable = null;
+        _async.waitForCallback(
+            event_source,
+            &state.completed,
+            io,
+            polling_interval_nanoseconds,
+        ) catch |err| {
+            wait_error = err;
+        };
+
+        if (state.message_error) |err| {
+            state.response.deinit(allocator);
+            return err;
+        }
+        if (wait_error) |err| {
+            state.response.deinit(allocator);
+            return err;
+        }
+        return state.response;
+    }
+
     pub inline fn pushErrorScope(self: *Device, filter: ErrorFilter) void {
         raw.call(void, "wgpuDevicePushErrorScope", .{ self, filter });
     }
@@ -367,4 +453,21 @@ pub const Device = opaque {
     }
 };
 
-// TODO: Test methods of Device (as long as they can be tested headlessly: see https://eliemichel.github.io/LearnWebGPU/advanced-techniques/headless.html)
+test "synchronous error-scope callback copies its message" {
+    var callback_message = [_]u8{ 'o', 'l', 'd' };
+    var state = Device.PopErrorScopeSyncState{
+        .allocator = std.testing.allocator,
+    };
+    Device.defaultPopErrorScopeCallback(
+        .@"error",
+        .validation,
+        StringView.fromSlice(&callback_message),
+        @ptrCast(&state),
+        null,
+    );
+    defer state.response.deinit(std.testing.allocator);
+
+    callback_message[0] = 'n';
+    try std.testing.expect(state.completed);
+    try std.testing.expectEqualStrings("old", state.response.message.?);
+}

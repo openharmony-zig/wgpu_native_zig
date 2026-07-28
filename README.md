@@ -234,9 +234,12 @@ zig build --build-file build.tests.zig check \
 ```
 
 The target-artifact workflow builds the complete matrix on Linux x86_64/aarch64, macOS
-arm64/Intel, Windows, Android, and OpenHarmony runners. Android and OpenHarmony run the
-binding/ABI audit for every ABI before packaging. Every artifact prefix contains both
-link modes and the matching headers.
+arm64/Intel, Windows, Android, and OpenHarmony runners. Every target runs the
+binding/ABI audit before packaging. Desktop targets compile all wrapper tests, while
+Android, OpenHarmony, and arm64 iOS targets build a Zig link probe. Zig 0.16 cannot link
+the historical `x86_64-apple-ios` Mach-O platform marker as an explicit simulator dylib,
+so that one target runs the binding/ABI audit without the link probe. Every artifact
+prefix contains both link modes and the matching headers.
 
 ## How the `wgpu` module differs from `wgpu-c`
 
@@ -255,7 +258,8 @@ link modes and the matching headers.
     ```zig
     Instance.createSurface(self: *Instance, descriptor: *const SurfaceDescriptor) ?*Surface
     ```
-- Certain asynchronous methods such as requestAdapter and requestDevice are provided with wrapper methods.
+- Callback-based operations provide synchronous helpers for adapter/device requests,
+  buffer mapping, submitted queue work, and device error scopes.
   - For example, requesting an adapter with a callback looks something like
     ```zig
     fn handleRequestAdapter(
@@ -310,9 +314,12 @@ link modes and the matching headers.
         }
     };
     ```
-    The synchronous response owns its copied callback message and returned handle.
-    Call `deinit()` on every response, and use `takeAdapter()` or `takeDevice()` to
-    transfer a successful handle out of it.
+    The synchronous responses own their copied callback messages and any returned
+    handle. Call `deinit()` on every response, and use `takeAdapter()` or
+    `takeDevice()` to transfer a successful handle out of it. The other helpers
+    follow the same lifetime model:
+    `Buffer.mapSync()`, `Queue.onSubmittedWorkDoneSync()`, and
+    `Device.popErrorScopeSync()`.
     If the supplied `Io` is cancelled, the synchronous wrapper finishes draining
     the native callback before returning the cancellation error, yielding the
     polling thread between `processEvents()` calls. This is required because
@@ -322,9 +329,25 @@ link modes and the matching headers.
   `deinit()` methods. In particular, `SupportedFeatures`, `AdapterInfo`, and
   `SurfaceCapabilities` clear their owned pointers, counts, and strings after
   releasing them, so a deferred `deinit()` cannot observe stale members.
+  `SupportedFeatures.slice()` and the `SurfaceCapabilities.*Slice()` accessors
+  expose their pointer/count arrays as bounded read-only slices.
+- `Instance.enumerateAdapters()` allocates an `AdapterList` that owns every returned
+  adapter. Deinitialize the list to release all remaining adapters, or transfer one:
+  ```zig
+  var adapters = try instance.enumerateAdapters(allocator, null);
+  defer adapters.deinit(allocator);
+
+  const adapter = adapters.takeAdapter(0).?;
+  defer adapter.release();
+  ```
 - `SurfaceTexture` owns the texture returned by `Surface.getCurrentTexture()`.
   Use `defer surface_texture.deinit()` to release it automatically, or call
   `takeTexture()` to transfer the texture to code that will release it.
+- Wrapper methods use slices where the C API uses a pointer/count pair.
+  `Queue.writeBuffer()` and `Queue.writeTexture()` take byte slices,
+  `setBindGroup()` takes a dynamic-offset slice, and `setImmediates()` takes a
+  byte slice. Buffer mapped-range accessors return bounded byte slices and resolve
+  `WGPU_WHOLE_MAP_SIZE` against the buffer size.
 - Chained structs are provided with inline functions for constructing them, which come in two forms depending on whether or not the chained struct is likely to always be required.
   - For required chained structs, you can either write them explicitely:
     ```zig
@@ -371,6 +394,6 @@ link modes and the matching headers.
 
 ## TODO
 
-- Expand headless coverage for Device creation, feature/limit queries, error scopes,
-  textures, samplers, query sets, and render bundles.
+- Expand headless coverage for limit queries, textures, samplers, query sets, and
+  render bundles.
 - Port [wgpu-native-examples](https://github.com/samdauwe/webgpu-native-examples) using wrapper code, as a basic form of documentation.
