@@ -2,7 +2,6 @@ const std = @import("std");
 
 const _chained_struct = @import("chained_struct.zig");
 const ChainedStruct = _chained_struct.ChainedStruct;
-const ChainedStructOut = _chained_struct.ChainedStructOut;
 const SType = _chained_struct.SType;
 
 const _adapter = @import("adapter.zig");
@@ -79,6 +78,46 @@ pub const GLFenceBehaviour = enum(u32) {
     gl_fence_behaviour_auto_finish = 0x00000001,
 };
 
+pub const Dx12SwapchainKind = enum(u32) {
+    undefined = 0x00000000,
+    dxgi_from_hwnd = 0x00000001,
+    dxgi_from_visual = 0x00000002,
+};
+
+pub const NativeDisplayHandleType = enum(u32) {
+    none = 0x00000000,
+    xlib = 0x00000001,
+    xcb = 0x00000002,
+    wayland = 0x00000003,
+};
+
+pub const XlibDisplayHandle = extern struct {
+    display: ?*anyopaque = null,
+    screen: c_int = 0,
+};
+
+pub const XcbDisplayHandle = extern struct {
+    connection: ?*anyopaque = null,
+    screen: c_int = 0,
+};
+
+pub const WaylandDisplayHandle = extern struct {
+    display: ?*anyopaque = null,
+};
+
+pub const NativeDisplayHandleData = extern union {
+    xlib: XlibDisplayHandle,
+    xcb: XcbDisplayHandle,
+    wayland: WaylandDisplayHandle,
+};
+
+pub const NativeDisplayHandle = extern struct {
+    type: NativeDisplayHandleType = .none,
+    data: NativeDisplayHandleData = .{
+        .wayland = .{},
+    },
+};
+
 pub const InstanceExtras = extern struct {
     chain: ChainedStruct = ChainedStruct{
         .s_type = SType.instance_extras,
@@ -88,27 +127,39 @@ pub const InstanceExtras = extern struct {
     dx12_shader_compiler: Dx12Compiler,
     gles3_minor_version: Gles3MinorVersion,
     gl_fence_behavior: GLFenceBehaviour,
-    dxil_path: StringView = StringView{},
     dxc_path: StringView = StringView{},
     dxc_max_shader_model: DxcMaxShaderModel,
+    dx12_presentation_system: Dx12SwapchainKind = .undefined,
+    budget_for_device_creation: ?*const u8 = null,
+    budget_for_device_loss: ?*const u8 = null,
+    display_handle: NativeDisplayHandle = .{},
 };
 
-pub const InstanceCapabilities = extern struct {
-    // This struct chain is used as mutable in some places and immutable in others.
-    next_in_chain: ?*ChainedStructOut = null,
+pub const InstanceFeatureName = enum(u32) {
+    timed_wait_any = 0x00000001,
+    shader_source_spirv = 0x00000002,
+    multiple_devices_per_adapter = 0x00000003,
+};
 
-    // Enable use of ::wgpuInstanceWaitAny with `timeoutNS > 0`.
-    timed_wait_any_enable: WGPUBool,
+pub const SupportedInstanceFeatures = extern struct {
+    feature_count: usize = 0,
+    features: [*]const InstanceFeatureName = &[0]InstanceFeatureName{},
 
-    // The maximum number FutureWaitInfo supported in a call to ::wgpuInstanceWaitAny with `timeoutNS > 0`.
-    timed_wait_any_max_count: usize,
+    pub inline fn freeMembers(self: SupportedInstanceFeatures) void {
+        wgpuSupportedInstanceFeaturesFreeMembers(self);
+    }
+};
+
+pub const InstanceLimits = extern struct {
+    next_in_chain: ?*const ChainedStruct = null,
+    timed_wait_any_max_count: usize = 0,
 };
 
 pub const InstanceDescriptor = extern struct {
     next_in_chain: ?*const ChainedStruct = null,
-
-    // Instance features to enable
-    features: InstanceCapabilities,
+    required_feature_count: usize = 0,
+    required_features: [*]const InstanceFeatureName = &[0]InstanceFeatureName{},
+    required_limits: ?*const InstanceLimits = null,
 
     pub inline fn withNativeExtras(self: InstanceDescriptor, extras: *InstanceExtras) InstanceDescriptor {
         var id = self;
@@ -122,6 +173,11 @@ pub const WGSLLanguageFeatureName = enum(u32) {
     packed4x8_integer_dot_product = 0x00000002,
     unrestricted_pointer_parameters = 0x00000003,
     pointer_composite_access = 0x00000004,
+    uniform_buffer_standard_layout = 0x00000005,
+    subgroup_id = 0x00000006,
+    texture_and_sampler_let = 0x00000007,
+    subgroup_uniformity = 0x00000008,
+    texture_formats_tier_1 = 0x00000009,
 };
 
 pub const SupportedWGSLLanguageFeaturesProcs = struct {
@@ -134,8 +190,8 @@ pub const SupportedWGSLLanguageFeatures = extern struct {
     feature_count: usize,
     features: [*]const WGSLLanguageFeatureName,
 
-    // Unimplemented as of wgpu-native v25.0.2.1,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d8238888998db26ceab41942f269da0fa32b890c/src/unimplemented.rs#L193
+    // Unimplemented as of wgpu-native v29.0.0.0,
+    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
     // pub inline fn freeMembers(self: SupportedWGSLLanguageFeatures) void {
     //     wgpuSupportedWGSLLanguageFeaturesFreeMembers(self);
     // }
@@ -143,10 +199,12 @@ pub const SupportedWGSLLanguageFeatures = extern struct {
 
 pub const InstanceProcs = struct {
     pub const CreateInstance = *const fn (?*const InstanceDescriptor) callconv(.c) ?*Instance;
-    pub const GetCapabilities = *const fn (*InstanceCapabilities) callconv(.c) Status;
+    pub const GetInstanceFeatures = *const fn (*SupportedInstanceFeatures) callconv(.c) void;
+    pub const GetInstanceLimits = *const fn (*InstanceLimits) callconv(.c) Status;
+    pub const HasInstanceFeature = *const fn (InstanceFeatureName) callconv(.c) WGPUBool;
 
     pub const CreateSurface = *const fn (*Instance, *const SurfaceDescriptor) callconv(.c) ?*Surface;
-    pub const GetWGSLLanguageFeatures = *const fn (*Instance, *SupportedWGSLLanguageFeatures) callconv(.c) Status;
+    pub const GetWGSLLanguageFeatures = *const fn (*Instance, *SupportedWGSLLanguageFeatures) callconv(.c) void;
     pub const HasWGSLLanguageFeature = *const fn (*Instance, WGSLLanguageFeatureName) callconv(.c) WGPUBool;
     pub const ProcessEvents = *const fn (*Instance) callconv(.c) void;
     pub const RequestAdapter = *const fn (*Instance, ?*const RequestAdapterOptions, RequestAdapterCallbackInfo) callconv(.c) Future;
@@ -159,11 +217,14 @@ pub const InstanceProcs = struct {
     // pub const EnumerateAdapters = *const fn(*Instance, ?*const EnumerateAdapterOptions, ?[*]Adapter) callconv(.c) usize;
 };
 
-extern fn wgpuGetInstanceCapabilities(capabilities: *InstanceCapabilities) Status;
+extern fn wgpuGetInstanceFeatures(features: *SupportedInstanceFeatures) void;
+extern fn wgpuGetInstanceLimits(limits: *InstanceLimits) Status;
+extern fn wgpuHasInstanceFeature(feature: InstanceFeatureName) WGPUBool;
+extern fn wgpuSupportedInstanceFeaturesFreeMembers(features: SupportedInstanceFeatures) void;
 
 extern fn wgpuCreateInstance(descriptor: ?*const InstanceDescriptor) ?*Instance;
 extern fn wgpuInstanceCreateSurface(instance: *Instance, descriptor: *const SurfaceDescriptor) ?*Surface;
-extern fn wgpuInstanceGetWGSLLanguageFeatures(instance: *Instance, features: *SupportedWGSLLanguageFeatures) Status;
+extern fn wgpuInstanceGetWGSLLanguageFeatures(instance: *Instance, features: *SupportedWGSLLanguageFeatures) void;
 extern fn wgpuInstanceHasWGSLLanguageFeature(instance: *Instance, feature: WGSLLanguageFeatureName) WGPUBool;
 extern fn wgpuInstanceProcessEvents(instance: *Instance) void;
 extern fn wgpuInstanceRequestAdapter(instance: *Instance, options: ?*const RequestAdapterOptions, callback_info: RequestAdapterCallbackInfo) Future;
@@ -218,24 +279,30 @@ pub const Instance = opaque {
         return wgpuCreateInstance(descriptor);
     }
 
-    // This is also a global function, but I think it would make sense being a member of Instance;
-    // You'd use it like `const status = Instance.getCapabilities(&capabilities);`
-    pub inline fn getCapabilities(capabilities: *InstanceCapabilities) Status {
-        return wgpuGetInstanceCapabilities(capabilities);
+    pub inline fn getFeatures(features: *SupportedInstanceFeatures) void {
+        wgpuGetInstanceFeatures(features);
+    }
+
+    pub inline fn getLimits(limits: *InstanceLimits) Status {
+        return wgpuGetInstanceLimits(limits);
+    }
+
+    pub inline fn hasFeature(feature: InstanceFeatureName) bool {
+        return wgpuHasInstanceFeature(feature) != 0;
     }
 
     pub inline fn createSurface(self: *Instance, descriptor: *const SurfaceDescriptor) ?*Surface {
         return wgpuInstanceCreateSurface(self, descriptor);
     }
 
-    // Unimplemented as of wgpu-native v25.0.2.1,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d8238888998db26ceab41942f269da0fa32b890c/src/unimplemented.rs#L100
-    // pub inline fn getWGSLLanguageFeatures(self: *Instance, features: *SupportedWGSLLanguageFeatures) Status {
-    //     return wgpuInstanceGetWGSLLanguageFeatures(self, features);
+    // Unimplemented as of wgpu-native v29.0.0.0,
+    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
+    // pub inline fn getWGSLLanguageFeatures(self: *Instance, features: *SupportedWGSLLanguageFeatures) void {
+    //     wgpuInstanceGetWGSLLanguageFeatures(self, features);
     // }
 
-    // Unimplemented as of wgpu-native v25.0.2.1,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d8238888998db26ceab41942f269da0fa32b890c/src/unimplemented.rs#L108
+    // Unimplemented as of wgpu-native v29.0.0.0,
+    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
     // pub inline fn hasWGSLLanguageFeature(self: *Instance, feature: WGSLLanguageFeatureName) bool {
     //     return wgpuInstanceHasWGSLLanguageFeature(self, feature) != 0;
     // }
@@ -290,8 +357,8 @@ pub const Instance = opaque {
         return wgpuInstanceRequestAdapter(self, options, callback_info);
     }
 
-    // Unimplemented as of wgpu-native v25.0.2.1,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d8238888998db26ceab41942f269da0fa32b890c/src/unimplemented.rs#L224
+    // Unimplemented as of wgpu-native v29.0.0.0,
+    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
     // Wait for at least one Future in `futures` to complete, and call callbacks of the respective completed asynchronous operations.
     // pub inline fn waitAny(self: *Instance, future_count: usize, futures: ?[*] FutureWaitInfo, timeout_ns: u64) WaitStatus {
     //     return wgpuInstanceWaitAny(self, future_count, futures, timeout_ns);
@@ -325,11 +392,14 @@ test "can create instance (and release it afterwards)" {
 test "can request adapter" {
     const testing = @import("std").testing;
 
-    const instance = Instance.create(null);
-    const response = try instance.?.requestAdapterSync(std.testing.io, null, 200_000_000);
+    const instance = Instance.create(null).?;
+    defer instance.release();
+    const response = try instance.requestAdapterSync(std.testing.io, null, 200_000_000);
     const adapter: ?*Adapter = switch (response.status) {
         .success => response.adapter,
         else => null,
     };
-    try testing.expect(adapter != null);
+    if (adapter == null) return error.SkipZigTest;
+    defer adapter.?.release();
+    try testing.expect(response.status == .success);
 }

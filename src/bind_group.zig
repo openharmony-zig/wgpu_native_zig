@@ -25,6 +25,32 @@ const _misc = @import("misc.zig");
 const WGPU_WHOLE_SIZE = _misc.WGPU_WHOLE_SIZE;
 const StringView = _misc.StringView;
 
+pub const ExternalTexture = opaque {
+    pub inline fn addRef(self: *ExternalTexture) void {
+        wgpuExternalTextureAddRef(self);
+    }
+
+    pub inline fn release(self: *ExternalTexture) void {
+        wgpuExternalTextureRelease(self);
+    }
+};
+
+extern fn wgpuExternalTextureAddRef(external_texture: *ExternalTexture) void;
+extern fn wgpuExternalTextureRelease(external_texture: *ExternalTexture) void;
+
+pub const ExternalTextureBindingLayout = extern struct {
+    chain: ChainedStruct = .{
+        .s_type = .external_texture_binding_layout,
+    },
+};
+
+pub const ExternalTextureBindingEntry = extern struct {
+    chain: ChainedStruct = .{
+        .s_type = .external_texture_binding_entry,
+    },
+    external_texture: ?*ExternalTexture = null,
+};
+
 pub const BindGroupLayoutEntryExtras = extern struct {
     chain: ChainedStruct = ChainedStruct{
         .s_type = SType.bind_group_layout_entry_extras,
@@ -38,6 +64,7 @@ pub const BindGroupLayoutEntry = extern struct {
     next_in_chain: ?*const ChainedStruct = null,
     binding: u32,
     visibility: ShaderStage,
+    binding_array_size: u32 = 0,
     buffer: BufferBindingLayout = BufferBindingLayout{
         .type = BufferBindingType.binding_not_used,
     },
@@ -78,8 +105,8 @@ extern fn wgpuBindGroupLayoutAddRef(bind_group_layout: *BindGroupLayout) void;
 extern fn wgpuBindGroupLayoutRelease(bind_group_layout: *BindGroupLayout) void;
 
 pub const BindGroupLayout = opaque {
-    // Unimplemented as of wgpu-native v25.0.2.1,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d8238888998db26ceab41942f269da0fa32b890c/src/unimplemented.rs#L17
+    // Unimplemented as of wgpu-native v29.0.0.0,
+    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
     // pub inline fn setLabel(self: *BindGroupLayout, label: []const u8) void {
     //     wgpuBindGroupLayoutSetLabel(self, StringView.fromSlice(label));
     // }
@@ -139,8 +166,8 @@ extern fn wgpuBindGroupAddRef(bind_group: *BindGroup) void;
 extern fn wgpuBindGroupRelease(bind_group: *BindGroup) void;
 
 pub const BindGroup = opaque {
-    // Unimplemented as of wgpu-native v25.0.2.1,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d8238888998db26ceab41942f269da0fa32b890c/src/unimplemented.rs#L9
+    // Unimplemented as of wgpu-native v29.0.0.0,
+    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
     // pub inline fn setLabel(self: *BindGroup, label: []const u8) void {
     //     wgpuBindGroupSetLabel(self, StringView.fromSlice(label));
     // }

@@ -66,8 +66,8 @@ extern fn wgpuSamplerAddRef(sampler: *Sampler) void;
 extern fn wgpuSamplerRelease(sampler: *Sampler) void;
 
 pub const Sampler = opaque {
-    // Unimplemented as of wgpu-native v25.0.2.1,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d8238888998db26ceab41942f269da0fa32b890c/src/unimplemented.rs#L169
+    // Unimplemented as of wgpu-native v29.0.0.0,
+    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
     // pub inline fn setLabel(self: *Sampler, label: []const u8) void {
     //     wgpuSamplerSetLabel(self, StringView.fromSlice(label));
     // }

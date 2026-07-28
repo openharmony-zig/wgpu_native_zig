@@ -8,8 +8,6 @@ const TextureFormat = @import("texture.zig").TextureFormat;
 const Buffer = @import("buffer.zig").Buffer;
 const BindGroup = @import("bind_group.zig").BindGroup;
 const RenderPipeline = @import("pipeline.zig").RenderPipeline;
-const ShaderStage = @import("shader.zig").ShaderStage;
-
 pub const RenderBundleEncoderDescriptor = extern struct {
     next_in_chain: ?*const ChainedStruct = null,
     label: StringView = StringView{},
@@ -37,9 +35,6 @@ pub const RenderBundleEncoderProcs = struct {
     pub const SetVertexBuffer = *const fn (*RenderBundleEncoder, u32, *Buffer, u64, u64) callconv(.c) void;
     pub const AddRef = *const fn (*RenderBundleEncoder) callconv(.c) void;
     pub const Release = *const fn (*RenderBundleEncoder) callconv(.c) void;
-
-    // wgpu-native procs?
-    // pub const SetPushConstants = *const fn(*RenderBundleEncoder, ShaderStage, u32, u32, *const anyopaque) callconv(.c) void;
 };
 
 extern fn wgpuRenderBundleEncoderDraw(render_bundle_encoder: *RenderBundleEncoder, vertex_count: u32, instance_count: u32, first_vertex: u32, first_instance: u32) void;
@@ -59,7 +54,7 @@ extern fn wgpuRenderBundleEncoderAddRef(render_bundle_encoder: *RenderBundleEnco
 extern fn wgpuRenderBundleEncoderRelease(render_bundle_encoder: *RenderBundleEncoder) void;
 
 // wgpu-native
-extern fn wgpuRenderBundleEncoderSetPushConstants(render_bundle_encoder: *RenderBundleEncoder, stages: ShaderStage, offset: u32, size_bytes: u32, data: *const anyopaque) void;
+extern fn wgpuRenderBundleEncoderSetImmediates(render_bundle_encoder: *RenderBundleEncoder, offset: u32, size_bytes: u32, data: *const anyopaque) void;
 
 // TODO: This is very similar to CommandEncoder; should it go in the same file? There's a lot of duplicated import code.
 pub const RenderBundleEncoder = opaque {
@@ -94,8 +89,8 @@ pub const RenderBundleEncoder = opaque {
         wgpuRenderBundleEncoderSetIndexBuffer(self, buffer, format, offset, size);
     }
 
-    // Unimplemented as of wgpu-native v25.0.2.1,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d8238888998db26ceab41942f269da0fa32b890c/src/unimplemented.rs#L145
+    // Unimplemented as of wgpu-native v29.0.0.0,
+    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
     // pub inline fn setLabel(self: *RenderBundleEncoder, label: []const u8) void {
     //     wgpuRenderBundleEncoderSetLabel(self, StringView.fromSlice(label));
     // }
@@ -114,8 +109,8 @@ pub const RenderBundleEncoder = opaque {
     }
 
     // wgpu-native
-    pub inline fn setPushConstants(self: *RenderBundleEncoder, stages: ShaderStage, offset: u32, size_bytes: u32, data: *const anyopaque) void {
-        wgpuRenderBundleEncoderSetPushConstants(self, stages, offset, size_bytes, data);
+    pub inline fn setImmediates(self: *RenderBundleEncoder, offset: u32, size_bytes: u32, data: *const anyopaque) void {
+        wgpuRenderBundleEncoderSetImmediates(self, offset, size_bytes, data);
     }
 };
 
@@ -135,8 +130,8 @@ extern fn wgpuRenderBundleAddRef(render_bundle: *RenderBundle) void;
 extern fn wgpuRenderBundleRelease(render_bundle: *RenderBundle) void;
 
 pub const RenderBundle = opaque {
-    // Unimplemented as of wgpu-native v25.0.2.1,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d8238888998db26ceab41942f269da0fa32b890c/src/unimplemented.rs#L137
+    // Unimplemented as of wgpu-native v29.0.0.0,
+    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
     // pub inline fn setLabel(self: *RenderBundle, label: []const u8) void {
     //     wgpuRenderBundleSetLabel(self, StringView.fromSlice(label));
     // }

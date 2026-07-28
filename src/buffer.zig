@@ -57,10 +57,9 @@ pub const MapModes = struct {
 
 pub const MapAsyncStatus = enum(u32) {
     success = 0x00000001,
-    instance_dropped = 0x00000002,
+    callback_cancelled = 0x00000002,
     @"error" = 0x00000003,
     aborted = 0x00000004,
-    unknown = 0x00000005,
 };
 
 pub const BufferMapCallbackInfo = extern struct {
@@ -134,8 +133,8 @@ pub const Buffer = opaque {
         return wgpuBufferGetConstMappedRange(self, offset, size);
     }
 
-    // Unimplemented as of wgpu-native v25.0.2.1,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d8238888998db26ceab41942f269da0fa32b890c/src/unimplemented.rs#L25
+    // Unimplemented as of wgpu-native v29.0.0.0,
+    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
     // pub inline fn getMapState(self: *Buffer) BufferMapState {
     //     return wgpuBufferGetMapState(self);
     // }
@@ -168,8 +167,8 @@ pub const Buffer = opaque {
         return wgpuBufferMapAsync(self, mode, offset, size, callback_info);
     }
 
-    // Unimplemented as of wgpu-native v25.0.2.1,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d8238888998db26ceab41942f269da0fa32b890c/src/unimplemented.rs#L30
+    // Unimplemented as of wgpu-native v29.0.0.0,
+    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
     // pub inline fn setLabel(self: *Buffer, label: []const u8) void {
     //     wgpuBufferSetLabel(self, StringView.fromSlice(label));
     // }

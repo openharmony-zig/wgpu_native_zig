@@ -14,7 +14,28 @@ pub fn build(b: *std.Build) void {
     }
 
     unitTests(b, library, check_step);
+    abiTest(b, library, check_step);
     computeTests(b, library, check_step);
+}
+
+fn abiTest(
+    b: *std.Build,
+    library: Library.Result,
+    check_step: *std.Build.Step,
+) void {
+    const test_mod = b.createModule(.{
+        .root_source_file = b.path("tests/abi.zig"),
+        .target = library.target,
+        .optimize = library.optimize,
+    });
+    test_mod.addImport("wgpu", library.wgpu_mod);
+    test_mod.addImport("wgpu-c", library.wgpu_c_mod);
+    const test_exe = b.addTest(.{
+        .name = "abi-test",
+        .root_module = test_mod,
+    });
+    library.configureCompile(test_exe);
+    check_step.dependOn(&test_exe.step);
 }
 
 fn unitTests(

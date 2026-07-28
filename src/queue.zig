@@ -22,9 +22,8 @@ pub const QueueDescriptor = extern struct {
 
 pub const WorkDoneStatus = enum(u32) {
     success = 0x00000001,
-    instance_dropped = 0x00000002,
+    callback_cancelled = 0x00000002,
     @"error" = 0x00000003,
-    unknown = 0x00000004,
 };
 
 pub const QueueWorkDoneCallbackInfo = extern struct {
@@ -38,7 +37,7 @@ pub const QueueWorkDoneCallbackInfo = extern struct {
     userdata2: ?*anyopaque = null,
 };
 
-pub const QueueWorkDoneCallback = *const fn (status: WorkDoneStatus, userdata1: ?*anyopaque, userdata2: ?*anyopaque) callconv(.c) void;
+pub const QueueWorkDoneCallback = *const fn (status: WorkDoneStatus, message: StringView, userdata1: ?*anyopaque, userdata2: ?*anyopaque) callconv(.c) void;
 
 pub const QueueProcs = struct {
     pub const OnSubmittedWorkDone = *const fn (*Queue, QueueWorkDoneCallbackInfo) callconv(.c) Future;
@@ -69,8 +68,8 @@ pub const Queue = opaque {
         return wgpuQueueOnSubmittedWorkDone(self, callback_info);
     }
 
-    // Unimplemented as of wgpu-native v25.0.2.1,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d8238888998db26ceab41942f269da0fa32b890c/src/unimplemented.rs#L132
+    // Unimplemented as of wgpu-native v29.0.0.0,
+    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
     // pub inline fn setLabel(self: *Queue, label: []const u8) void {
     //     wgpuQueueSetLabel(self, StringView.fromSlice(label));
     // }

@@ -203,6 +203,13 @@ pub const CompositeAlphaMode = enum(u32) {
     inherit = 0x00000004,
 };
 
+pub const SurfaceSourceSwapChainPanel = extern struct {
+    chain: ChainedStruct = .{
+        .s_type = .surface_source_swap_chain_panel,
+    },
+    panel_native: ?*anyopaque = null,
+};
+
 // Describes when and in which order frames are presented on the screen when `::wgpuSurfacePresent` is called.
 pub const PresentMode = enum(u32) {
     // Present mode is not specified. Use the default.
@@ -225,6 +232,24 @@ pub const PresentMode = enum(u32) {
     // The presentation of the image to the user waits for the next vertical blanking period to update to the latest provided image.
     // Tearing cannot be observed and a frame-loop is not limited to the display's refresh rate.
     mailbox = 0x00000004,
+};
+
+pub const PredefinedColorSpace = enum(u32) {
+    srgb = 0x00000001,
+    display_p3 = 0x00000002,
+};
+
+pub const ToneMappingMode = enum(u32) {
+    standard = 0x00000001,
+    extended = 0x00000002,
+};
+
+pub const SurfaceColorManagement = extern struct {
+    chain: ChainedStruct = .{
+        .s_type = .surface_color_management,
+    },
+    color_space: PredefinedColorSpace,
+    tone_mapping_mode: ToneMappingMode,
 };
 
 pub const SurfaceConfigurationExtras = extern struct {
@@ -325,14 +350,11 @@ pub const GetCurrentTextureStatus = enum(u32) {
     // The connection to whatever owns the surface was lost.
     lost = 0x00000005,
 
-    // The system ran out of memory.
-    out_of_memory = 0x00000006,
-
-    // The Device configured on the Surface was lost.
-    device_lost = 0x00000007,
-
     // The surface is not configured, or there was an OutStructChainError.
-    @"error" = 0x00000008,
+    @"error" = 0x00000006,
+
+    // wgpu-native extension: the surface is currently occluded.
+    occluded = 0x00030001,
 };
 
 // Queried each frame from a Surface to get a Texture to render to along with some metadata.
@@ -405,8 +427,8 @@ pub const Surface = opaque {
         return wgpuSurfacePresent(self);
     }
 
-    // Unimplemented as of wgpu-native v25.0.2.1,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d8238888998db26ceab41942f269da0fa32b890c/src/unimplemented.rs#L200
+    // Unimplemented as of wgpu-native v29.0.0.0,
+    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
     // pub inline fn setLabel(self: *Surface, label: []const u8) void {
     //     wgpuSurfaceSetLabel(self, StringView.fromSlice(label));
     // }

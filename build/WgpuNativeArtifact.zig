@@ -1,5 +1,6 @@
 const std = @import("std");
 const Platform = @import("platform/root.zig");
+const addDirectoryFiles = @import("file_tree.zig").addDirectoryFiles;
 
 pub const Result = struct {
     header: std.Build.LazyPath,
@@ -76,7 +77,12 @@ fn buildSource(
     if (source_dependency == null or headers_dependency == null) return null;
 
     const staged_source = b.addWriteFiles();
-    _ = staged_source.addCopyDirectory(source_dependency.?.path(""), "", .{});
+    addDirectoryFiles(
+        b,
+        staged_source,
+        source_dependency.?.path(""),
+        "",
+    );
     _ = staged_source.addCopyDirectory(
         headers_dependency.?.path(""),
         "ffi/webgpu-headers",
@@ -86,6 +92,12 @@ fn buildSource(
         headers_dependency.?.path("webgpu.h"),
         "ffi/webgpu.h",
     );
+    if (!Platform.patchSource(
+        b,
+        staged_source,
+        source_dependency.?.path(""),
+        platform,
+    )) return null;
     const source_root = staged_source.getDirectory();
 
     const cargo = b.addSystemCommand(&.{
@@ -96,6 +108,10 @@ fn buildSource(
     });
     cargo.setName(b.fmt("build wgpu-native for {s}", .{platform.rust_target}));
     cargo.addFileArg(source_root.path(b, "Cargo.toml"));
+    if (Platform.hasSourceCargoConfig(platform)) {
+        cargo.addArg("--config");
+        cargo.addFileArg(source_root.path(b, ".cargo/config.toml"));
+    }
     cargo.addArgs(&.{ "--target", platform.rust_target, "--target-dir" });
     const cargo_target_dir = cargo.addOutputDirectoryArg("wgpu-native-target");
     if (optimize != .Debug) cargo.addArg("--release");
