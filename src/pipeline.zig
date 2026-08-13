@@ -1,7 +1,6 @@
 const raw = @import("raw.zig");
 const _chained_struct = @import("chained_struct.zig");
 const ChainedStruct = _chained_struct.ChainedStruct;
-const SType = _chained_struct.SType;
 
 const _shader = @import("shader.zig");
 const ShaderModule = _shader.ShaderModule;
@@ -17,13 +16,6 @@ const StringView = _misc.StringView;
 const OptionalBool = _misc.OptionalBool;
 
 const TextureFormat = @import("texture.zig").TextureFormat;
-
-pub const PipelineLayoutExtras = extern struct {
-    chain: ChainedStruct = ChainedStruct{
-        .s_type = SType.pipeline_layout_extras,
-    },
-    immediate_data_size: u32 = 0,
-};
 
 pub const PipelineLayoutDescriptor = extern struct {
     next_in_chain: ?*const ChainedStruct = null,
@@ -41,18 +33,12 @@ pub const PipelineLayoutDescriptor = extern struct {
             .bind_group_layouts = bind_group_layouts.ptr,
         };
     }
-
-    pub inline fn withExtras(self: PipelineLayoutDescriptor, extras: *const PipelineLayoutExtras) PipelineLayoutDescriptor {
-        var descriptor = self;
-        descriptor.next_in_chain = @ptrCast(extras);
-        return descriptor;
-    }
 };
 
 pub const PipelineLayout = opaque {
 
     // Unimplemented as of wgpu-native v29.0.0.0,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
+    // see https://github.com/gfx-rs/wgpu-native/blob/4a26b5b0757fe281c07dac4f3a6e2078c811f635/src/unimplemented.rs
     // pub inline fn setLabel(self: *PipelineLayout, label: []const u8) void {
     //     wgpuPipelineLayoutSetLabel(self, StringView.fromSlice(label));
     // }
@@ -103,7 +89,7 @@ pub const ComputePipeline = opaque {
     }
 
     // Unimplemented as of wgpu-native v29.0.0.0,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
+    // see https://github.com/gfx-rs/wgpu-native/blob/4a26b5b0757fe281c07dac4f3a6e2078c811f635/src/unimplemented.rs
     // pub inline fn setLabel(self: *ComputePipeline, label: []const u8) void {
     //     wgpuComputePipelineSetLabel(self, StringView.fromSlice(label));
     // }
@@ -469,7 +455,7 @@ pub const RenderPipeline = opaque {
     }
 
     // Unimplemented as of wgpu-native v29.0.0.0,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
+    // see https://github.com/gfx-rs/wgpu-native/blob/4a26b5b0757fe281c07dac4f3a6e2078c811f635/src/unimplemented.rs
     // pub inline fn setLabel(self: *RenderPipeline, label: []const u8) void {
     //     wgpuRenderPipelineSetLabel(self, StringView.fromSlice(label));
     // }

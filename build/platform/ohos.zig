@@ -70,7 +70,7 @@ pub fn patchSource(
 ) bool {
     if (config.target.result.cpu.arch != .arm) return true;
 
-    const wgpu_source = b.lazyDependency("wgpu_source_29_0_1", .{}) orelse
+    const wgpu_source = b.lazyDependency("wgpu_source_29_0_4", .{}) orelse
         return false;
     addDirectoryFiles(
         b,
@@ -79,7 +79,7 @@ pub fn patchSource(
         "vendor/wgpu-hal",
     );
     _ = staged_source.addCopyFile(
-        b.path("build/patches/wgpu-hal-29.0.1/Cargo.toml"),
+        b.path("build/patches/wgpu-hal-29.0.4/Cargo.toml"),
         "vendor/wgpu-hal/Cargo.toml",
     );
 
@@ -107,14 +107,14 @@ pub fn patchSource(
     const cargo_lock = readFile(b, source_root.path(b, "Cargo.lock"), 1024 * 1024);
     const registry_entry =
         \\source = "registry+https://github.com/rust-lang/crates.io-index"
-        \\checksum = "89a47aef47636562f3937285af4c44b4b5b404b46577471411cc5313a921da7e"
+        \\checksum = "97ace1c17727311c22a46e4e3faf56ea6de81af99dcc839bdfb54857b94d448d"
     ;
     _ = staged_source.add(
         "Cargo.lock",
         replaceExactlyOnce(b, cargo_lock, registry_entry, ""),
     );
     _ = staged_source.add(".cargo/config.toml",
-        \\# wgpu-hal 29.0.1 constructs libc::timespec with a struct literal.
+        \\# wgpu-hal 29.0.4 constructs libc::timespec with a struct literal.
         \\# Its private padding field makes that fail for 32-bit OHOS. Keep the
         \\# same crate version and apply the initialization used by wgpu-hal 30.
         \\[patch.crates-io]

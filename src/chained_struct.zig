@@ -19,15 +19,16 @@ pub const SType = enum(u32) {
     // wgpu-native extras (wgpu.h)
     device_extras = 0x00030001,
     native_limits = 0x00030002,
-    pipeline_layout_extras = 0x00030003,
-    shader_source_glsl = 0x00030004,
-    instance_extras = 0x00030006,
-    bind_group_entry_extras = 0x00030007,
-    bind_group_layout_entry_extras = 0x00030008,
-    query_set_descriptor_extras = 0x00030009,
-    surface_configuration_extras = 0x0003000A,
-    surface_source_swap_chain_panel = 0x0003000B,
-    primitive_state_extras = 0x0003000C,
+    shader_source_glsl = 0x00030003,
+    instance_extras = 0x00030004,
+    bind_group_entry_extras = 0x00030005,
+    bind_group_layout_entry_extras = 0x00030006,
+    query_set_descriptor_extras = 0x00030007,
+    surface_configuration_extras = 0x00030008,
+    surface_source_swap_chain_panel = 0x00030009,
+    primitive_state_extras = 0x0003000A,
+    sampler_descriptor_extras = 0x0003000B,
+    surface_source_ohos_native_window = 0x0003000C,
 };
 
 pub const ChainedStruct = extern struct {

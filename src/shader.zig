@@ -21,6 +21,16 @@ pub const ShaderStages = struct {
     pub const compute = @as(ShaderStage, 0x0000000000000004);
 };
 
+pub const ShaderRuntimeChecks = WGPUFlags;
+pub const ShaderRuntimeCheckFlags = struct {
+    pub const none = @as(ShaderRuntimeChecks, 0x0000000000000000);
+    pub const bounds_checks = @as(ShaderRuntimeChecks, 0x0000000000000001);
+    pub const force_loop_bounding = @as(ShaderRuntimeChecks, 0x0000000000000002);
+    pub const ray_query_initialization_tracking = @as(ShaderRuntimeChecks, 0x0000000000000004);
+    pub const task_shader_dispatch_tracking = @as(ShaderRuntimeChecks, 0x0000000000000008);
+    pub const mesh_shader_primitive_indices_clamp = @as(ShaderRuntimeChecks, 0x0000000000000010);
+};
+
 pub const ShaderModuleDescriptor = extern struct {
     next_in_chain: *const ChainedStruct,
     label: StringView = StringView{},
@@ -167,13 +177,13 @@ pub const ShaderModule = opaque {
     };
 
     // Unimplemented as of wgpu-native v29.0.0.0,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
+    // see https://github.com/gfx-rs/wgpu-native/blob/4a26b5b0757fe281c07dac4f3a6e2078c811f635/src/unimplemented.rs
     // pub inline fn getCompilationInfo(self: *ShaderModule, callback_info: CompilationInfoCallbackInfo) Future {
     //     return wgpuShaderModuleGetCompilationInfo(self, callback_info);
     // }
 
     // Unimplemented as of wgpu-native v29.0.0.0,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
+    // see https://github.com/gfx-rs/wgpu-native/blob/4a26b5b0757fe281c07dac4f3a6e2078c811f635/src/unimplemented.rs
     // pub inline fn setLabel(self: *ShaderModule, label: []const u8) void {
     //     wgpuShaderModuleSetLabel(self, StringView.fromSlice(label));
     // }

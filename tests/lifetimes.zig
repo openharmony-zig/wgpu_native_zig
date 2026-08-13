@@ -70,6 +70,10 @@ test "surface descriptor helpers borrow caller-owned sources" {
     };
     const xlib_descriptor = wgpu.surfaceDescriptorFromXlibWindow(&xlib_source, "Xlib");
     try expectChain(&xlib_source.chain, xlib_descriptor.next_in_chain);
+
+    const ohos_source = wgpu.SurfaceSourceOhosNativeWindow{ .window = native_pointer };
+    const ohos_descriptor = wgpu.surfaceDescriptorFromOhosNativeWindow(&ohos_source, "OHOS");
+    try expectChain(&ohos_source.chain, ohos_descriptor.next_in_chain);
 }
 
 test "withExtras helpers borrow caller-owned extensions" {
@@ -88,10 +92,9 @@ test "withExtras helpers borrow caller-owned extensions" {
     const device_descriptor = (wgpu.DeviceDescriptor{ .required_limits = null }).withExtras(&device_extras);
     try expectChain(&device_extras.chain, device_descriptor.next_in_chain);
 
-    const pipeline_extras = wgpu.PipelineLayoutExtras{ .immediate_data_size = 16 };
-    const pipeline_descriptor =
-        wgpu.PipelineLayoutDescriptor.init(&.{}).withExtras(&pipeline_extras);
-    try expectChain(&pipeline_extras.chain, pipeline_descriptor.next_in_chain);
+    const sampler_extras = wgpu.SamplerDescriptorExtras{ .sampler_border_color = .opaque_black };
+    const sampler_descriptor = (wgpu.SamplerDescriptor{}).withExtras(&sampler_extras);
+    try expectChain(&sampler_extras.chain, sampler_descriptor.next_in_chain);
 
     const layout_entry_extras = wgpu.BindGroupLayoutEntryExtras{ .count = 2 };
     const layout_entry = (wgpu.BindGroupLayoutEntry{

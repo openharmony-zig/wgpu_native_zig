@@ -15,14 +15,14 @@ methods and raw calls therefore share the headers as their single ABI source of 
 
 ### Binding coverage
 
-The pinned wgpu-native `v29.0.0.0` headers currently declare 226 functions. The
-`wgpu` wrapper exposes every function with a usable v29 implementation, while
-`wgpu.raw` and `wgpu-c` expose all function and type declarations produced by
+The pinned wgpu-native headers currently declare 228 functions. The `wgpu`
+wrapper exposes every function with a usable implementation, while `wgpu.raw`
+and `wgpu-c` expose all function and type declarations produced by
 `translate-c`. A compile-time audit checks this partition, rejects handwritten
 `extern fn wgpu...` declarations, and fails when a future header update adds an
 unclassified function or type.
 
-The following v29 API groups intentionally remain raw-only because their upstream
+The following API groups intentionally remain raw-only because their upstream
 implementations panic, are blocked, or always return an unavailable result:
 
 - `wgpuGetProcAddress` and the currently unimplemented `*SetLabel` functions.
@@ -31,12 +31,14 @@ implementations panic, are blocked, or always return an unavailable result:
 - Buffer map-state and mapped-range copy helpers.
 - External-texture lifecycle functions.
 - Device adapter-info lookup and texture binding-view-dimension lookup.
-- The native Metal command-queue accessor, which always returns null in v29.
+- The native Metal command-queue accessor, which always returns null.
 
 Supported wgpu-native extensions are available as regular Zig methods, including
-`Queue.getTimestampPeriod`, graphics-debugger capture control, and the borrowed Metal
-device/texture accessors. Platform-native pointers are optional and must not be released
-by the caller.
+`Queue.getTimestampPeriod`, graphics-debugger capture control, the borrowed Metal
+device/texture accessors, `CommandEncoder.clearTexture()`, and
+`Device.createShaderModuleTrusted()`. OpenHarmony surfaces use
+`SurfaceSourceOhosNativeWindow`. Platform-native pointers are optional and must
+not be released by the caller.
 
 ## Adding this package to your build
 
@@ -144,9 +146,11 @@ b.getInstallStep().dependOn(&install_dll.step);
 
 ## Building `wgpu-native`
 
-`wgpu-native` v29.0.0.0 is built from its pinned source commit by default. The matching
-`webgpu-headers` commit is pinned separately, so the generated C ABI does not drift when
-an upstream branch changes.
+`wgpu-native` is built from its pinned source commit by default (currently
+[`4a26b5b`](https://github.com/gfx-rs/wgpu-native/commit/4a26b5b0757fe281c07dac4f3a6e2078c811f635),
+which adds OpenHarmony `OHNativeWindow` surfaces). The matching `webgpu-headers`
+commit is pinned separately, so the generated C ABI does not drift when an
+upstream branch changes.
 
 The source build requires Cargo, a Rust toolchain with the selected target installed,
 and the platform SDK normally required by that target. For example:
@@ -203,8 +207,10 @@ prefix/
 ```
 
 Use the platform-specific dynamic and import-library names on Apple and Windows.
-OpenHarmony currently uses this local-directory mechanism when consuming CI artifacts,
-because upstream `wgpu-native` does not publish OpenHarmony archives.
+The published GitHub release archives are still `v29.0.0.0` and do not match this
+source pin. Prefer a source build, or point `WGPU_NATIVE_PREBUILT_DIR` at an
+artifact built from the same commit. OpenHarmony has no published upstream
+archives, so it always uses a source build or a local CI artifact.
 
 ### Supported artifact targets
 
@@ -232,6 +238,10 @@ zig build --build-file build.tests.zig check \
 zig build --build-file build.tests.zig check \
   -Dtarget=x86_64-linux-ohos -Doptimize=ReleaseFast
 ```
+
+The ARMv7 OpenHarmony source build still vendors a local `wgpu-hal` 29.0.4
+patch. Upstream constructs `libc::timespec` with a struct literal, which
+fails on 32-bit OHOS because that type has a private padding field.
 
 The target-artifact workflow builds the complete matrix on Linux x86_64/aarch64, macOS
 arm64/Intel, Windows, Android, and OpenHarmony runners. Every target runs the

@@ -65,6 +65,7 @@ const _shader = @import("shader.zig");
 const ShaderModuleDescriptor = _shader.ShaderModuleDescriptor;
 const ShaderModuleDescriptorSpirV = _shader.ShaderModuleDescriptorSpirV;
 const ShaderModule = _shader.ShaderModule;
+const ShaderRuntimeChecks = _shader.ShaderRuntimeChecks;
 
 const _texture = @import("texture.zig");
 const TextureDescriptor = _texture.TextureDescriptor;
@@ -319,7 +320,7 @@ pub const Device = opaque {
     }
 
     // Unimplemented as of wgpu-native v29.0.0.0,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
+    // see https://github.com/gfx-rs/wgpu-native/blob/4a26b5b0757fe281c07dac4f3a6e2078c811f635/src/unimplemented.rs
     // pub inline fn createComputePipelineAsync(self: *Device, descriptor: *const ComputePipelineDescriptor, callback_info: CreateComputePipelineAsyncCallbackInfo) Future {
     //     return wgpuDeviceCreateComputePipelineAsync(self, descriptor, callback_info);
     // }
@@ -338,7 +339,7 @@ pub const Device = opaque {
     }
 
     // Unimplemented as of wgpu-native v29.0.0.0,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
+    // see https://github.com/gfx-rs/wgpu-native/blob/4a26b5b0757fe281c07dac4f3a6e2078c811f635/src/unimplemented.rs
     // pub inline fn createRenderPipelineAsync(self: *Device, descriptor: *const RenderPipelineDescriptor, callback_info: CreateRenderPipelineAsyncCallbackInfo) Future {
     //     return wgpuDeviceCreateRenderPipelineAsync(self, descriptor, callback_info);
     // }
@@ -349,6 +350,17 @@ pub const Device = opaque {
     pub inline fn createShaderModule(self: *Device, descriptor: *const ShaderModuleDescriptor) ?*ShaderModule {
         return raw.call(?*ShaderModule, "wgpuDeviceCreateShaderModule", .{ self, descriptor });
     }
+    pub inline fn createShaderModuleTrusted(
+        self: *Device,
+        descriptor: *const ShaderModuleDescriptor,
+        runtime_checks: ShaderRuntimeChecks,
+    ) ?*ShaderModule {
+        return raw.call(?*ShaderModule, "wgpuDeviceCreateShaderModuleTrusted", .{
+            self,
+            descriptor,
+            runtime_checks,
+        });
+    }
     pub inline fn createTexture(self: *Device, descriptor: *const TextureDescriptor) ?*Texture {
         return raw.call(?*Texture, "wgpuDeviceCreateTexture", .{ self, descriptor });
     }
@@ -357,7 +369,7 @@ pub const Device = opaque {
     }
 
     // Unimplemented as of wgpu-native v29.0.0.0,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
+    // see https://github.com/gfx-rs/wgpu-native/blob/4a26b5b0757fe281c07dac4f3a6e2078c811f635/src/unimplemented.rs
     // pub inline fn getAdapterInfo(self: *Device, adapter_info: *AdapterInfo) Status {
     //     return wgpuDeviceGetAdapterInfo(self, adapter_info);
     // }
@@ -370,7 +382,7 @@ pub const Device = opaque {
     }
 
     // Unimplemented as of wgpu-native v29.0.0.0,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
+    // see https://github.com/gfx-rs/wgpu-native/blob/4a26b5b0757fe281c07dac4f3a6e2078c811f635/src/unimplemented.rs
     // Returns the Future for the device-lost event of the device.
     // pub inline fn getLostFuture(self: *Device) Future {
     //     return wgpuDeviceGetLostFuture(self);
@@ -428,7 +440,7 @@ pub const Device = opaque {
     }
 
     // Unimplemented as of wgpu-native v29.0.0.0,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
+    // see https://github.com/gfx-rs/wgpu-native/blob/4a26b5b0757fe281c07dac4f3a6e2078c811f635/src/unimplemented.rs
     // pub inline fn setLabel(self: *Device, label: []const u8) void {
     //     wgpuDeviceSetLabel(self, StringView.fromSlice(label));
     // }

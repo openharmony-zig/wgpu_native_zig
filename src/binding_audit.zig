@@ -28,11 +28,11 @@ const wrapper_sources = .{
     .{ "texture.zig", @embedFile("texture.zig") },
 };
 
-// These functions are declared by the pinned v29 headers but do not provide a
-// usable implementation in wgpu-native v29.0.0.0. Most panic through Rust's
-// `unimplemented!()`; the native Metal command queue accessor logs a warning
-// and always returns null. They remain available through `wgpu.raw`, but are
-// intentionally not promoted to the Zig-friendly wrapper.
+// These functions are declared by the pinned headers but do not provide a
+// usable implementation in the pinned wgpu-native commit. Most panic through
+// Rust's `unimplemented!()`; the native Metal command queue accessor logs a
+// warning and always returns null. They remain available through `wgpu.raw`,
+// but are intentionally not promoted to the Zig-friendly wrapper.
 const unavailable_v29_functions = [_][]const u8{
     "wgpuBindGroupLayoutSetLabel",
     "wgpuBindGroupSetLabel",
@@ -91,7 +91,7 @@ pub fn validate() void {
 
     for (unavailable_v29_functions) |name| {
         if (!@hasDecl(header, name)) {
-            @compileError("v29 unavailable-function list contains missing header function " ++ name);
+            @compileError("unavailable-function list contains missing header function " ++ name);
         }
     }
 
@@ -106,7 +106,7 @@ pub fn validate() void {
         wrapper_function_count + unavailable_v29_functions.len;
     if (covered_function_count != header_function_count) {
         @compileError(std.fmt.comptimePrint(
-            "v29 function coverage mismatch: {d} wrapper + {d} unavailable != {d} header functions",
+            "function coverage mismatch: {d} wrapper + {d} unavailable != {d} header functions",
             .{
                 wrapper_function_count,
                 unavailable_v29_functions.len,
@@ -313,7 +313,7 @@ fn validateWrapperSource(
             @compileError(file_name ++ " references missing header function " ++ name);
         }
         if (isUnavailableV29Function(name)) {
-            @compileError(file_name ++ " exposes unavailable wgpu-native v29 function " ++ name);
+            @compileError(file_name ++ " exposes unavailable wgpu-native function " ++ name);
         }
         var already_registered = false;
         for (wrapper_functions[0..wrapper_function_count.*]) |registered| {

@@ -1,5 +1,7 @@
 const raw = @import("raw.zig");
-const ChainedStruct = @import("chained_struct.zig").ChainedStruct;
+const _chained_struct = @import("chained_struct.zig");
+const ChainedStruct = _chained_struct.ChainedStruct;
+const SType = _chained_struct.SType;
 
 const _misc = @import("misc.zig");
 const CompareFunction = _misc.CompareFunction;
@@ -29,6 +31,25 @@ pub const AddressMode = enum(u32) {
     mirror_repeat = 0x00000003,
 };
 
+pub const NativeAddressMode = enum(u32) {
+    clamp_to_border = 0x00000004,
+};
+
+pub const SamplerBorderColor = enum(u32) {
+    undefined = 0x00000000,
+    transparent_black = 0x00000001,
+    opaque_black = 0x00000002,
+    opaque_white = 0x00000003,
+    zero = 0x00000004,
+};
+
+pub const SamplerDescriptorExtras = extern struct {
+    chain: ChainedStruct = ChainedStruct{
+        .s_type = SType.sampler_descriptor_extras,
+    },
+    sampler_border_color: SamplerBorderColor = .undefined,
+};
+
 pub const FilterMode = enum(u32) {
     undefined = 0x00000000, // Indicates no value is passed for this argument.
     nearest = 0x00000001,
@@ -54,11 +75,20 @@ pub const SamplerDescriptor = extern struct {
     lod_max_clamp: f32 = 32.0,
     compare: CompareFunction = CompareFunction.undefined,
     max_anisotropy: u16 = 1,
+
+    pub inline fn withExtras(
+        self: SamplerDescriptor,
+        extras: *const SamplerDescriptorExtras,
+    ) SamplerDescriptor {
+        var descriptor = self;
+        descriptor.next_in_chain = @ptrCast(extras);
+        return descriptor;
+    }
 };
 
 pub const Sampler = opaque {
     // Unimplemented as of wgpu-native v29.0.0.0,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
+    // see https://github.com/gfx-rs/wgpu-native/blob/4a26b5b0757fe281c07dac4f3a6e2078c811f635/src/unimplemented.rs
     // pub inline fn setLabel(self: *Sampler, label: []const u8) void {
     //     wgpuSamplerSetLabel(self, StringView.fromSlice(label));
     // }

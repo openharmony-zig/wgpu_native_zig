@@ -64,7 +64,7 @@ pub const QuerySet = opaque {
     }
 
     // Unimplemented as of wgpu-native v29.0.0.0,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
+    // see https://github.com/gfx-rs/wgpu-native/blob/4a26b5b0757fe281c07dac4f3a6e2078c811f635/src/unimplemented.rs
     // pub inline fn setLabel(self: *QuerySet, label: []const u8) void {
     //     wgpuQuerySetSetLabel(self, StringView.fromSlice(label));
     // }

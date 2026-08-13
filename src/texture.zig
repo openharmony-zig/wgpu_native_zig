@@ -115,12 +115,6 @@ pub const TextureFormat = enum(u32) {
     astc12x12_unorm_srgb = 0x00000065,
 
     // wgpu-native texture formats
-    native_r16_unorm = 0x00030001,
-    native_r16_snorm = 0x00030002,
-    native_rg16_unorm = 0x00030003,
-    native_rg16_snorm = 0x00030004,
-    native_rgba16_unorm = 0x00030005,
-    native_rgba16_snorm = 0x00030006,
     nv12 = 0x00030007,
     p010 = 0x00030008,
 };
@@ -141,6 +135,14 @@ pub const TextureAspect = enum(u32) {
     all = 0x00000001,
     stencil_only = 0x00000002,
     depth_only = 0x00000003,
+};
+
+pub const ImageSubresourceRange = extern struct {
+    aspect: TextureAspect,
+    base_mip_level: u32,
+    mip_level_count: u32,
+    base_array_layer: u32,
+    array_layer_count: u32,
 };
 
 pub const TextureViewDescriptor = extern struct {
@@ -182,7 +184,7 @@ pub const TextureComponentSwizzleDescriptor = extern struct {
 
 pub const TextureView = opaque {
     // Unimplemented as of wgpu-native v29.0.0.0,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
+    // see https://github.com/gfx-rs/wgpu-native/blob/4a26b5b0757fe281c07dac4f3a6e2078c811f635/src/unimplemented.rs
     // pub inline fn setLabel(self: *TextureView, label: []const u8) void {
     //     wgpuTextureViewSetLabel(self, StringView.fromSlice(label));
     // }
@@ -325,7 +327,7 @@ pub const Texture = opaque {
     }
 
     // Unimplemented as of wgpu-native v29.0.0.0,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
+    // see https://github.com/gfx-rs/wgpu-native/blob/4a26b5b0757fe281c07dac4f3a6e2078c811f635/src/unimplemented.rs
     // pub inline fn setLabel(self: *Texture, label: []const u8) void {
     //     wgpuTextureSetLabel(self, StringView.fromSlice(label));
     // }

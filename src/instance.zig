@@ -193,6 +193,7 @@ pub const WGSLLanguageFeatureName = enum(u32) {
     texture_and_sampler_let = 0x00000007,
     subgroup_uniformity = 0x00000008,
     texture_formats_tier_1 = 0x00000009,
+    linear_indexing = 0x0000000A,
 };
 
 pub const SupportedWGSLLanguageFeatures = extern struct {
@@ -210,7 +211,7 @@ pub const SupportedWGSLLanguageFeatures = extern struct {
     }
 
     // Unimplemented as of wgpu-native v29.0.0.0,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
+    // see https://github.com/gfx-rs/wgpu-native/blob/4a26b5b0757fe281c07dac4f3a6e2078c811f635/src/unimplemented.rs
     // pub inline fn freeMembers(self: SupportedWGSLLanguageFeatures) void {
     //     wgpuSupportedWGSLLanguageFeaturesFreeMembers(self);
     // }
@@ -345,13 +346,13 @@ pub const Instance = opaque {
     }
 
     // Unimplemented as of wgpu-native v29.0.0.0,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
+    // see https://github.com/gfx-rs/wgpu-native/blob/4a26b5b0757fe281c07dac4f3a6e2078c811f635/src/unimplemented.rs
     // pub inline fn getWGSLLanguageFeatures(self: *Instance, features: *SupportedWGSLLanguageFeatures) void {
     //     wgpuInstanceGetWGSLLanguageFeatures(self, features);
     // }
 
     // Unimplemented as of wgpu-native v29.0.0.0,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
+    // see https://github.com/gfx-rs/wgpu-native/blob/4a26b5b0757fe281c07dac4f3a6e2078c811f635/src/unimplemented.rs
     // pub inline fn hasWGSLLanguageFeature(self: *Instance, feature: WGSLLanguageFeatureName) bool {
     //     return wgpuInstanceHasWGSLLanguageFeature(self, feature) != 0;
     // }
@@ -424,7 +425,7 @@ pub const Instance = opaque {
     }
 
     // Unimplemented as of wgpu-native v29.0.0.0,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
+    // see https://github.com/gfx-rs/wgpu-native/blob/4a26b5b0757fe281c07dac4f3a6e2078c811f635/src/unimplemented.rs
     // Wait for at least one Future in `futures` to complete, and call callbacks of the respective completed asynchronous operations.
     // pub inline fn waitAny(self: *Instance, future_count: usize, futures: ?[*] FutureWaitInfo, timeout_ns: u64) WaitStatus {
     //     return wgpuInstanceWaitAny(self, future_count, futures, timeout_ns);

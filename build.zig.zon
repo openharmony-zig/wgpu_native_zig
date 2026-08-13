@@ -17,19 +17,19 @@
     // internet connectivity.
     .dependencies = .{
         .wgpu_native_source = .{
-            .url = "https://github.com/gfx-rs/wgpu-native/archive/d2e3330ade4ae1bb238d76b485926f067e7ee64c.tar.gz",
-            .hash = "N-V-__8AAOEBCQDjHbYvo-IVZoEoDA_pik7xV3_cNs5ykiVr",
+            .url = "https://github.com/gfx-rs/wgpu-native/archive/4a26b5b0757fe281c07dac4f3a6e2078c811f635.tar.gz",
+            .hash = "N-V-__8AAHZlCQAAENmOhUcDXO7qeLNpWkJjOSUnlQY-L_rQ",
             .lazy = true,
         },
         .webgpu_headers_source = .{
-            .url = "https://github.com/webgpu-native/webgpu-headers/archive/7d3186c3dd2c708703524027b46b8703534ab3cc.tar.gz",
-            .hash = "N-V-__8AAKfVCwACaVDbxAcElqWNITTDQQSvqtRBmFQOAqNe",
+            .url = "https://github.com/webgpu-native/webgpu-headers/archive/673658bc2bd70ec39fc55ebe6bb0173cf6d0a603.tar.gz",
+            .hash = "N-V-__8AAEDmCwCG_LBUyjbPgby3BnpN3cMcfmHImZBxSAJV",
             .lazy = true,
         },
         // Used only for the OHOS ARMv7 source-build compatibility patch.
-        .wgpu_source_29_0_1 = .{
-            .url = "https://github.com/gfx-rs/wgpu/archive/refs/tags/v29.0.1.tar.gz",
-            .hash = "N-V-__8AAL7MCAI7KtjV9IE2GaelUvxkij22ME6R6LDsbqf_",
+        .wgpu_source_29_0_4 = .{
+            .url = "https://github.com/gfx-rs/wgpu/archive/refs/tags/v29.0.4.tar.gz",
+            .hash = "N-V-__8AADzsCAJYoebpJLgK2XlgUNTPBSFDgfQhFTKzhK2K",
             .lazy = true,
         },
         // See `zig fetch --save <url>` for a command-line interface for adding dependencies.

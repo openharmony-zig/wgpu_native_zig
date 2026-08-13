@@ -52,9 +52,10 @@ pub const WGPUNativeLimits = extern struct {
     chain: ChainedStruct = ChainedStruct{
         .s_type = SType.native_limits,
     },
-    max_immediate_size: u32 = 0,
-    max_non_sampler_bindings: u32 = 1_000_000,
-    max_binding_array_elements_per_shader_stage: u32 = 0,
+    max_non_sampler_bindings: u32 = WGPU_LIMIT_U32_UNDEFINED,
+    max_binding_array_elements_per_shader_stage: u32 = WGPU_LIMIT_U32_UNDEFINED,
+    max_binding_array_sampler_elements_per_shader_stage: u32 = WGPU_LIMIT_U32_UNDEFINED,
+    max_multiview_view_count: u32 = WGPU_LIMIT_U32_UNDEFINED,
 };
 
 pub const CompatibilityModeLimits = extern struct {

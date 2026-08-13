@@ -13,9 +13,11 @@ const TexelCopyBufferInfo = _copy.TexelCopyBufferInfo;
 const TexelCopyTextureInfo = _copy.TexelCopyTextureInfo;
 
 const _texture = @import("texture.zig");
+const Texture = _texture.Texture;
 const TextureFormat = _texture.TextureFormat;
 const TextureView = _texture.TextureView;
 const Extent3D = _texture.Extent3D;
+const ImageSubresourceRange = _texture.ImageSubresourceRange;
 
 const _misc = @import("misc.zig");
 const WGPUBool = _misc.WGPUBool;
@@ -101,7 +103,7 @@ pub const RenderBundleEncoder = opaque {
     }
 
     // Unimplemented as of wgpu-native v29.0.0.0,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
+    // see https://github.com/gfx-rs/wgpu-native/blob/4a26b5b0757fe281c07dac4f3a6e2078c811f635/src/unimplemented.rs
     // pub inline fn setLabel(self: *RenderBundleEncoder, label: []const u8) void {
     //     wgpuRenderBundleEncoderSetLabel(self, StringView.fromSlice(label));
     // }
@@ -128,8 +130,8 @@ pub const RenderBundleEncoder = opaque {
         raw.call(void, "wgpuRenderBundleEncoderSetImmediates", .{
             self,
             offset,
-            @as(u32, @intCast(data.len)),
             data.ptr,
+            data.len,
         });
     }
 };
@@ -189,7 +191,7 @@ pub const ComputePassEncoder = opaque {
     }
 
     // Unimplemented as of wgpu-native v29.0.0.0,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
+    // see https://github.com/gfx-rs/wgpu-native/blob/4a26b5b0757fe281c07dac4f3a6e2078c811f635/src/unimplemented.rs
     // pub inline fn setLabel(self: *ComputePassEncoder, label: []const u8) void {
     //     wgpuComputePassEncoderSetLabel(self, StringView.fromSlice(label));
     // }
@@ -213,8 +215,8 @@ pub const ComputePassEncoder = opaque {
         raw.call(void, "wgpuComputePassEncoderSetImmediates", .{
             self,
             offset,
-            @as(u32, @intCast(data.len)),
             data.ptr,
+            data.len,
         });
     }
     pub inline fn beginPipelineStatisticsQuery(self: *ComputePassEncoder, query_set: *QuerySet, query_index: u32) void {
@@ -359,7 +361,7 @@ pub const RenderPassEncoder = opaque {
     }
 
     // Unimplemented as of wgpu-native v29.0.0.0,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
+    // see https://github.com/gfx-rs/wgpu-native/blob/4a26b5b0757fe281c07dac4f3a6e2078c811f635/src/unimplemented.rs
     // pub inline fn setLabel(self: *RenderPassEncoder, label: []const u8) void {
     //     wgpuRenderPassEncoderSetLabel(self, StringView.fromSlice(label));
     // }
@@ -395,8 +397,8 @@ pub const RenderPassEncoder = opaque {
         raw.call(void, "wgpuRenderPassEncoderSetImmediates", .{
             self,
             offset,
-            @as(u32, @intCast(data.len)),
             data.ptr,
+            data.len,
         });
     }
     pub inline fn multiDrawIndirect(self: *RenderPassEncoder, buffer: *Buffer, offset: u64, count: u32) void {
@@ -429,7 +431,7 @@ pub const CommandBufferDescriptor = extern struct {
 
 pub const CommandBuffer = opaque {
     // Unimplemented as of wgpu-native v29.0.0.0,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
+    // see https://github.com/gfx-rs/wgpu-native/blob/4a26b5b0757fe281c07dac4f3a6e2078c811f635/src/unimplemented.rs
     // pub inline fn setLabel(self: *CommandBuffer, label: []const u8) void {
     //     wgpuCommandBufferSetLabel(self, StringView.fromSlice(label));
     // }
@@ -481,13 +483,20 @@ pub const CommandEncoder = opaque {
     }
 
     // Unimplemented as of wgpu-native v29.0.0.0,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
+    // see https://github.com/gfx-rs/wgpu-native/blob/4a26b5b0757fe281c07dac4f3a6e2078c811f635/src/unimplemented.rs
     // pub inline fn setLabel(self: *CommandEncoder, label: []const u8) void {
     //     wgpuCommandEncoderSetLabel(self, StringView.fromSlice(label));
     // }
 
     pub inline fn writeTimestamp(self: *CommandEncoder, query_set: *QuerySet, query_index: u32) void {
         raw.call(void, "wgpuCommandEncoderWriteTimestamp", .{ self, query_set, query_index });
+    }
+    pub inline fn clearTexture(
+        self: *CommandEncoder,
+        texture: *Texture,
+        range: *const ImageSubresourceRange,
+    ) void {
+        raw.call(void, "wgpuCommandEncoderClearTexture", .{ self, texture, range });
     }
     pub inline fn addRef(self: *CommandEncoder) void {
         raw.call(void, "wgpuCommandEncoderAddRef", .{self});

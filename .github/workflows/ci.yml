@@ -67,7 +67,3 @@ jobs:
         run: zig build --build-file build.tests.zig check -Dtarget=${{ matrix.zig_target }} -Doptimize=ReleaseFast --summary all
       - name: Run native unit tests
         run: zig build --build-file build.tests.zig test -Dtarget=${{ matrix.zig_target }} -Doptimize=ReleaseFast -j1 --summary all
-      - name: Verify prebuilt fallback
-        env:
-          WGPU_NATIVE_USE_PREBUILT: "1"
-        run: zig build --build-file build.tests.zig check -Dtarget=${{ matrix.zig_target }} -Doptimize=ReleaseFast --summary all

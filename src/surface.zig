@@ -140,6 +140,25 @@ pub inline fn surfaceDescriptorFromXlibWindow(source: *const SurfaceSourceXlibWi
     };
 }
 
+// Chained in SurfaceDescriptor to make a Surface wrapping an OpenHarmony OHNativeWindow.
+pub const SurfaceSourceOhosNativeWindow = extern struct {
+    chain: ChainedStruct = ChainedStruct{
+        .s_type = SType.surface_source_ohos_native_window,
+    },
+
+    // A pointer to an OpenHarmony OHNativeWindow. Must not be NULL.
+    window: *anyopaque,
+};
+pub inline fn surfaceDescriptorFromOhosNativeWindow(
+    source: *const SurfaceSourceOhosNativeWindow,
+    label: []const u8,
+) SurfaceDescriptor {
+    return .{
+        .next_in_chain = &source.chain,
+        .label = StringView.fromSlice(label),
+    };
+}
+
 // Describes how frames are composited with other contents on the screen when `::wgpuSurfacePresent` is called
 pub const CompositeAlphaMode = enum(u32) {
     // Lets the WebGPU implementation choose the best mode (supported, and with the best performance) between `@"opaque"` or `inherit`.
@@ -414,7 +433,7 @@ pub const Surface = opaque {
     }
 
     // Unimplemented as of wgpu-native v29.0.0.0,
-    // see https://github.com/gfx-rs/wgpu-native/blob/d2e3330ade4ae1bb238d76b485926f067e7ee64c/src/unimplemented.rs
+    // see https://github.com/gfx-rs/wgpu-native/blob/4a26b5b0757fe281c07dac4f3a6e2078c811f635/src/unimplemented.rs
     // pub inline fn setLabel(self: *Surface, label: []const u8) void {
     //     wgpuSurfaceSetLabel(self, StringView.fromSlice(label));
     // }
